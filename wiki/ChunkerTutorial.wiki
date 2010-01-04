@@ -1,0 +1,201 @@
+#summary Training a chunker from CoNLL 2000 data
+#labels Featured
+
+= Introduction =
+
+In 2000, the CoNLL task was [http://www.cnts.ua.ac.be/conll2000/chunking/ syntactic chunking]. In this tutorial, we train a chunker that can do as well as the systems involved in the eval.
+
+= Downloading the data =
+
+{{{
+wget http://www.cnts.ua.ac.be/conll2000/chunking/train.txt.gz
+wget http://www.cnts.ua.ac.be/conll2000/chunking/test.txt.gz
+gunzip train.txt.gz
+gunzip test.txt.gz
+}}}
+
+If you examine the data, you have sentences with one word per line, its part-of-speech tag and a chunk label. The labels are prefixed with "B" for begin, "I" for inside, and an additional label, "O" means that there is no chunk. This notation is often refered to as IOB or BIO.
+
+{{{
+Confidence NN B-NP
+in IN B-PP
+the DT B-NP
+pound NN I-NP
+is VBZ B-VP
+widely RB I-VP
+expected VBN I-VP
+to TO I-VP
+...
+}}}
+
+We will train a classifier that recognizes the chunk labels given the words and the part-of-speech tags.
+
+= Defining a template =
+
+Features are extracted from the input using a template. That template contains a set of rules that are applied to each line in the input.
+
+{{{
+U01%x[0,0]
+U02%x[0,1]
+U03%x[0,0]/%x[0,1]
+U04%x[-1,0]/%x[0,0]
+U05%x[-1,1]/%x[0,1]
+
+B01%x[0,0]
+B02%x[0,1]
+B03%x[0,0]/%x[0,1]
+B04%x[-1,0]/%x[0,0]
+B05%x[-1,1]/%x[0,1]
+
+B
+}}}
+
+If a rule begins by `U`, for unigram, it generates a feature for the current label, it it begins with a `B`, for bigram, it's for the _joint label_ represented by the current and the previous labels. Then, a rule contains free text to identify the feature (two rules that cannot be identified by the free text are treated as if comming from the same bag) and one or more reference to the input `%x[i,j]` where `i` is the relative line number and `j` is the column number starting from zero. So, `%x[0,0]` is the current word and `%x[-1,1]` is the previous part-of-speech tag.
+
+In the previous template definition, we have a few unigram features (current word, current pos tag, both of them, and bigrams of words and tags) and bigram features (similar to unigram features), and the lonely B which generates features for the pairs of consecutive labels regardless of the input.
+
+= Training the classifier =
+
+We can invoke `mira` in training mode (option `-t`), with filtering of features that occur only once (`-f 2`), for ten iterations (`-n 10`) with an update ceiling of 0.01 (`-s 0.01`) so that updates are not too strong. The `-iob` option lets the fscore computation class know that for scoring, labels use the IOB notation.
+
+{{{
+./mira -t -f 2 -n 10 -s 0.01 -iob chunking.template train.txt chunking.model test.txt
+read 11 templates from "chunking.template"
+counting: 8936
+unigrams: 147851, bigrams: 147852
+unigrams: 45441, bigrams: 45442, cutoff: 2
+labels: 22
+model: 22993630 weights
+iteration 0
+  train: 8936 examples, terr=0.08109027190674784 fscore=0.9182765133805846
+  test: 2012 examples, terr=0.06285750469637166 fscore=0.94290081450616658
+iteration 1
+  train: 8936 examples, terr=0.05255824717678898 fscore=0.94730790264605676
+  test: 2012 examples, terr=0.05644088903898516 fscore=0.94237231533468316
+iteration 2
+  train: 8936 examples, terr=0.04331521251422823 fscore=0.95673553332710172
+  test: 2012 examples, terr=0.05620870886717184 fscore=0.94399132230542984
+iteration 3
+  train: 8936 examples, terr=0.037137445861888184 fscore=0.9632894589238304
+  test: 2012 examples, terr=0.0536125124005319 fscore=0.951508801341156995
+iteration 4
+  train: 8936 examples, terr=0.03368488667009876 fscore=0.96631954830990122
+  test: 2012 examples, terr=0.052852650020051926 fscore=0.9499633469473243
+iteration 5
+  train: 8936 examples, terr=0.030336234868486304 fscore=0.9704371561712728
+  test: 2012 examples, terr=0.051037423222238636 fscore=0.9502436575826657
+iteration 6
+  train: 8936 examples, terr=0.026486938368748436 fscore=0.9738781729209802
+  test: 2012 examples, terr=0.04941216201954535 fscore=0.95301422158828727
+iteration 7
+  train: 8936 examples, terr=0.025641510057763064 fscore=0.9749476518097517
+  test: 2012 examples, terr=0.050256453553411996 fscore=0.9524828946816103
+iteration 8
+  train: 8936 examples, terr=0.02465438985108182 fscore=0.97580354931131023
+  test: 2012 examples, terr=0.04905333811765202 fscore=0.95339178587909553
+iteration 9
+  train: 8936 examples, terr=0.02393648424622273 fscore=0.97667701166616827
+  test: 2012 examples, terr=0.04799797370031872 fscore=0.95382679807087465
+writing model: chunking.model
+}}}
+
+Note that the error rates given on training data are not accurate _per se_ as they are computed _while_ the model is being updated.
+
+So, after 10 iterations, you have a fscore of about 95.38 which is even higher than the best system participating in the eval (94.13). Don't say hurray too soon, there have been many papers published since 2000 and you should probably check the state of the art. Furthermore, the part-of-speech tags you used are not automatically generated, which is not very realistic.
+
+= Test time =
+
+Run a part-of-speech tagger on your data and set it up so that it respects the format expected by mira. Then you can run:
+
+{{{
+../mira -p chunking.model < test.txt
+Rockwell NNP B-NP B-NP
+International NNP I-NP I-NP
+Corp. NNP I-NP I-NP
+'s POS B-NP B-NP
+Tulsa NNP I-NP I-NP
+unit NN I-NP I-NP
+said VBD B-VP B-VP
+it PRP B-NP B-NP
+signed VBD B-VP B-VP
+...
+}}}
+
+= Timing =
+
+On a not so recent machine, here is what we get:
+{{{
+/usr/bin/time ./mira -p chunking.model < test.txt > /dev/null
+reading model: chunking.model
+5.21user 0.41system 0:04.76elapsed 118%CPU (0avgtext+0avgdata 0maxresident)k
+0inputs+64outputs (1major+112213minor)pagefaults 0swaps
+}}}
+
+{{{
+/usr/bin/time ./mira -t -f 2 -n 10 -s 0.01 -iob chunking.template train.txt chunking.model test.txt
+...
+74.88user 0.91system 1:13.31elapsed 103%CPU (0avgtext+0avgdata 0maxresident)k
+0inputs+9064outputs (1major+166190minor)pagefaults 0swaps
+}}}
+
+= Examining the model =
+
+You can convert the binary model to a text format (compatible with CRF++)
+
+{{{
+./mira -c chunking.model chunking.model.txt
+reading model: chunking.model
+writing text model: chunking.model.txt
+}}}
+
+The file contains five sections separated by a blank line, the first one is a header, then there is the list of labels followed by the templates. Then come the feature ids and the last block contains all the weights. Each feature has one weight for each label (or pair of label for bigram features) which start in the weight array at the feature id.
+
+{{{
+version: 100
+cost-factor: 1
+maxid: 22993630
+xsize: 4
+
+B-NP
+B-PP
+I-NP
+B-VP
+I-VP
+B-SBAR
+O
+B-ADJP
+B-ADVP
+I-ADVP
+I-ADJP
+I-SBAR
+I-PP
+B-PRT
+B-LST
+B-INTJ
+I-INTJ
+B-CONJP
+I-CONJP
+I-PRT
+B-UCP
+I-UCP
+
+U01%x[0,0]
+U02%x[0,1]
+U03%x[0,0]/%x[0,1]
+U04%x[-1,0]/%x[0,0]
+U05%x[-1,1]/%x[0,1]
+B01%x[0,0]
+B02%x[0,1]
+B03%x[0,0]/%x[0,1]
+B04%x[-1,0]/%x[0,0]
+B05%x[-1,1]/%x[0,1]
+B
+
+118756 U04investment/trust
+598488 U04,/last
+620224 U03grants/NNS
+629816 U04have/more
+996248 U01opening
+745734 U04and/Japan
+...
+}}}
