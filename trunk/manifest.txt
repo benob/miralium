@@ -1,0 +1,2 @@
+Main-Class: edu.lium.mira.Mira
+Class-Path: trove-2.1.0.jar

@@ -1,0 +1,23 @@
+Margin Infused Relaxed Algorithm (MIRA) -- java implementation of MIRA learning for sequences, by Benoit Favre <benoit.favre@gmail.com>
+see LICENSE for copying information.
+
+Compile:
+
+javac -cp trove-2.1.0.jar edu/lium/mira/*.java
+
+Create jar:
+
+jar cfm mira.jar manifest.txt edu/ LICENSE LICENSE.trove trove-2.1.0.jar
+
+Execute:
+
+java -Xmx2G -jar mira.jar
+
+Usage:
+
+TRAIN: java -Xmx2G Mira -t [-f <cutoff>|-s <sigma>|-n <iter>|-i <model>|-r|-iob|-fi] <template> <train> <model> [heldout]
+PREDICT: java -Xmx2G Mira -p <model> [test]
+CONVERT: java -Xmx2G Mira -c [<model> <model.txt>|<model.txt> <model>]
+MERGE: java -Xmx2G Mira -m <output_model> <model1> <model2> ...
+
+The input format is the same as in the CRF++ toolkit (http://crfpp.sourceforge.net/).
