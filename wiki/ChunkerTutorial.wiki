@@ -5,6 +5,11 @@
 
 In 2000, the CoNLL task was [http://www.cnts.ua.ac.be/conll2000/chunking/ syntactic chunking]. In this tutorial, we train a chunker that can do as well as the systems involved in the eval.
 
+{{{
+mkdir chunker
+cd chunker
+}}}
+
 = Downloading the data =
 
 {{{
@@ -35,6 +40,7 @@ We will train a classifier that recognizes the chunk labels given the words and 
 Features are extracted from the input using a template. That template contains a set of rules that are applied to each line in the input.
 
 {{{
+cat > chunking.template <<EOF
 U01%x[0,0]
 U02%x[0,1]
 U03%x[0,0]/%x[0,1]
@@ -48,6 +54,7 @@ B04%x[-1,0]/%x[0,0]
 B05%x[-1,1]/%x[0,1]
 
 B
+EOF
 }}}
 
 If a rule begins by `U`, for unigram, it generates a feature for the current label, it it begins with a `B`, for bigram, it's for the _joint label_ represented by the current and the previous labels. Then, a rule contains free text to identify the feature (two rules that cannot be identified by the free text are treated as if comming from the same bag) and one or more reference to the input `%x[i,j]` where `i` is the relative line number and `j` is the column number starting from zero. So, `%x[0,0]` is the current word and `%x[-1,1]` is the previous part-of-speech tag.
@@ -139,6 +146,7 @@ reading model: chunking.model
 0inputs+64outputs (1major+112213minor)pagefaults 0swaps
 }}}
 
+And for training:
 {{{
 /usr/bin/time ./mira -t -f 2 -n 10 -s 0.01 -iob chunking.template train.txt chunking.model test.txt
 ...
