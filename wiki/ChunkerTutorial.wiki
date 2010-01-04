@@ -66,7 +66,7 @@ In the previous template definition, we have a few unigram features (current wor
 We can invoke `mira` in training mode (option `-t`), with filtering of features that occur only once (`-f 2`), for ten iterations (`-n 10`) with an update ceiling of 0.01 (`-s 0.01`) so that updates are not too strong. The `-iob` option lets the fscore computation class know that for scoring, labels use the IOB notation.
 
 {{{
-./mira -t -f 2 -n 10 -s 0.01 -iob chunking.template train.txt chunking.model test.txt
+../mira -t -f 2 -n 10 -s 0.01 -iob chunking.template train.txt chunking.model test.txt
 read 11 templates from "chunking.template"
 counting: 8936
 unigrams: 147851, bigrams: 147852
@@ -140,7 +140,7 @@ So, you get quite good results on the real eval metric. However, these are based
 
 On a not so recent machine, here is what we get:
 {{{
-/usr/bin/time ./mira -p chunking.model < test.txt > /dev/null
+/usr/bin/time ../mira -p chunking.model < test.txt > /dev/null
 reading model: chunking.model
 5.21user 0.41system 0:04.76elapsed 118%CPU (0avgtext+0avgdata 0maxresident)k
 0inputs+64outputs (1major+112213minor)pagefaults 0swaps
@@ -148,7 +148,7 @@ reading model: chunking.model
 
 And for training:
 {{{
-/usr/bin/time ./mira -t -f 2 -n 10 -s 0.01 -iob chunking.template train.txt chunking.model test.txt
+/usr/bin/time ../mira -t -f 2 -n 10 -s 0.01 -iob chunking.template train.txt chunking.model test.txt
 ...
 74.88user 0.91system 1:13.31elapsed 103%CPU (0avgtext+0avgdata 0maxresident)k
 0inputs+9064outputs (1major+166190minor)pagefaults 0swaps
@@ -159,7 +159,7 @@ And for training:
 You can convert the binary model to a text format (compatible with CRF++)
 
 {{{
-./mira -c chunking.model chunking.model.txt
+../mira -c chunking.model chunking.model.txt
 reading model: chunking.model
 writing text model: chunking.model.txt
 }}}
