@@ -101,25 +101,33 @@ writing model: chunking.model
 
 Note that the error rates given on training data are not accurate _per se_ as they are computed _while_ the model is being updated.
 
-So, after 10 iterations, you have a fscore of about 95.38 which is even higher than the best system participating in the eval (94.13). Don't say hurray too soon, there have been many papers published since 2000 and you should probably check the state of the art. Furthermore, the part-of-speech tags you used are not automatically generated, which is not very realistic.
-
 = Test time =
 
-Run a part-of-speech tagger on your data and set it up so that it respects the format expected by mira. Then you can run:
+First, get the conlleval script:
+{{{
+wget http://www.cnts.ua.ac.be/conll2000/chunking/conlleval.txt -O conlleval
+}}}
+
+Then you can run:
 
 {{{
-../mira -p chunking.model < test.txt
-Rockwell NNP B-NP B-NP
-International NNP I-NP I-NP
-Corp. NNP I-NP I-NP
-'s POS B-NP B-NP
-Tulsa NNP I-NP I-NP
-unit NN I-NP I-NP
-said VBD B-VP B-VP
-it PRP B-NP B-NP
-signed VBD B-VP B-VP
-...
+../mira -p chunking.model < test.txt | perl conlleval 
+reading model: chunking.model
+processed 47377 tokens with 23852 phrases; found: 23837 phrases; correct: 22042.
+accuracy:  95.20%; precision:  92.47%; recall:  92.41%; FB1:  92.44
+             ADJP: precision:  76.59%; recall:  71.69%; FB1:  74.06  410
+             ADVP: precision:  79.84%; recall:  78.64%; FB1:  79.23  853
+            CONJP: precision:  41.67%; recall:  55.56%; FB1:  47.62  12
+             INTJ: precision: 100.00%; recall:  50.00%; FB1:  66.67  1
+              LST: precision:   0.00%; recall:   0.00%; FB1:   0.00  0
+               NP: precision:  92.75%; recall:  92.54%; FB1:  92.64  12394
+               PP: precision:  96.47%; recall:  97.24%; FB1:  96.85  4849
+              PRT: precision:  73.68%; recall:  66.04%; FB1:  69.65  95
+             SBAR: precision:  83.15%; recall:  86.73%; FB1:  84.90  558
+               VP: precision:  92.90%; recall:  93.04%; FB1:  92.97  4665
 }}}
+
+So, you get quite good results on the real eval metric. However, these are based on gold-standard part-of-speech tags, which is not very realistic.
 
 = Timing =
 
