@@ -1,4 +1,4 @@
-#summary How to compile and install miralium
+#summary How to compile and install mira
 #labels Featured,Phase-Deploy
 
 Mira requires java 1.5 and the [http://trove4j.sourceforge.net/ trove] library.
