@@ -1,0 +1,32 @@
+#summary How to compile and install miralium
+#labels Featured,Phase-Deploy
+
+Mira requires java 1.5 and the [http://trove4j.sourceforge.net/ trove] library.
+
+  # Download the source code using [http://subversion.tigris.org/ subversion]:
+{{{
+svn checkout http://miralium.googlecode.com/svn/trunk/ miralium
+}}}
+  # Compile (in the miralium directory):
+{{{
+javac -cp trove-2.1.0.jar edu/lium/mira/*.java
+}}}
+  # Create jar file:
+{{{
+jar xf trove-2.1.0.jar gnu
+jar cfm mira.jar manifest.txt edu/ LICENSE LICENSE.trove gnu/
+rm -rf gnu/
+}}}
+  # Copy the jar to an executable location:
+{{{
+mkdir ~/bin
+cp mira mira.jar ~/bin
+}}}
+  # Add the executable location to your path variable (assumes bash):
+{{{
+export PATH=$PATH:~/bin
+}}}
+  # Run mira:
+{{{
+mira
+}}}
