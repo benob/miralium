@@ -7,7 +7,9 @@ javac -cp trove-2.1.0.jar edu/lium/mira/*.java
 
 Create jar:
 
-jar cfm mira.jar manifest.txt edu/ LICENSE LICENSE.trove trove-2.1.0.jar
+jar xf trove-2.1.0.jar gnu
+jar cfm mira.jar manifest.txt edu/ LICENSE LICENSE.trove gnu/
+rm -rf gnu/
 
 Execute:
 
