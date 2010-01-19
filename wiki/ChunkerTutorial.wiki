@@ -13,10 +13,8 @@ cd chunker
 = Downloading the data =
 
 {{{
-wget http://www.cnts.ua.ac.be/conll2000/chunking/train.txt.gz
-wget http://www.cnts.ua.ac.be/conll2000/chunking/test.txt.gz
-gunzip train.txt.gz
-gunzip test.txt.gz
+wget http://www.cnts.ua.ac.be/conll2000/chunking/train.txt.gz -O - | gunzip > train.txt
+wget http://www.cnts.ua.ac.be/conll2000/chunking/test.txt.gz -O - | gunzip > test.txt
 }}}
 
 If you examine the data, you have sentences with one word per line, its part-of-speech tag and a chunk label. The labels are prefixed with "B" for begin, "I" for inside, and an additional label, "O" means that there is no chunk. This notation is often refered to as IOB or BIO.
