@@ -354,32 +354,71 @@ class Mira implements Serializable {
         String beginPrefix = "B";
         String insidePrefix = "I";
         public void assess(Example example, Example prediction) {
-            int refStartedAt = -1;
-            int hypStartedAt = -2;
+            Vector<String> ref = new Vector<String>();
+            Vector<String> hyp = new Vector<String>();
+            String oldHyp = null;
             for(int i = 0; i < example.labels.length; i++) {
-                String ref = labels[example.labels[i]];
-                String hyp = labels[prediction.labels[i]];
-                if((ref.startsWith(beginPrefix) || outside.equals(ref)) && (hyp.startsWith(beginPrefix) || !outside.equals(hyp))) {
-                    if(!outside.equals(ref) && refStartedAt == hypStartedAt) numOk ++;
-                    refStartedAt = -1;
-                    hypStartedAt = -2;
+                String refLabel = labels[example.labels[i]];
+                String hypLabel = labels[prediction.labels[i]];
+                /*if(oldHyp != null && hypLabel.startsWith("I") && oldHyp.startsWith("I") && ! hypLabel.equals(oldHyp)) {
+                    System.err.println("FOUND");
+                }*/
+                oldHyp = hypLabel;
+                if((hypLabel.startsWith(beginPrefix) || hypLabel.equals(outside)) && (refLabel.startsWith(beginPrefix) || refLabel.equals(outside))) {
+                    if(ref.size() > 0 && ref.equals(hyp)) numOk++;
                 }
-                if(!ref.equals(hyp)) {
-                    refStartedAt = -1;
-                    hypStartedAt = -2;
-                }
-                if(ref.startsWith(beginPrefix)) {
-                    numRef++;
-                    refStartedAt = i;
-                }
-                if(hyp.startsWith(beginPrefix)) {
+                if(hypLabel.startsWith(beginPrefix)) {
                     numHyp++;
-                    hypStartedAt = i;
+                    hyp.clear();
+                    hyp.add(hypLabel);
                 }
+                if(hypLabel.equals(outside)) hyp.clear();
+                if(hypLabel.startsWith(insidePrefix)) hyp.add(hypLabel);
+                if(refLabel.startsWith(beginPrefix)) {
+                    numRef++;
+                    ref.clear();
+                    ref.add(refLabel);
+                }
+                if(refLabel.equals(outside)) ref.clear();
+                if(refLabel.startsWith(insidePrefix)) ref.add(refLabel);
             }
-            if(refStartedAt == hypStartedAt) numOk ++;
-        }
+            if(ref.size() > 0 && ref.equals(hyp)) {
+                numOk++;
+            }
+            /*int refStartedAt = -1;
+              int hypStartedAt = -2;
+              String refLabel = null;
+              String hypLabel = null;
+              for(int i = 0; i < example.labels.length; i++) {
+              String ref = labels[example.labels[i]];
+              String hyp = labels[prediction.labels[i]];
+            // to be fixed
+            //if((ref.startsWith(beginPrefix) || outside.equals(ref)) && (hyp.startsWith(beginPrefix) || outside.equals(hyp))) {
+            if(ref.equals(outside) || ref.startsWith(beginPrefix) || (i > 0 && (labels[example.labels[i - 1]].startsWith(insidePrefix) && labels[example.labels[i]].startsWith(insidePrefix) && example.labels[i - 1] != example.labels[i] || labels[example.labels[i - 1]].startsWith(outside) && labels[example.labels[i]].startsWith(insidePrefix)))) {
+            if(hyp.equals(outside) || hyp.startsWith(beginPrefix) || (i > 0 && (labels[prediction.labels[i - 1]].startsWith(insidePrefix) && labels[prediction.labels[i]].startsWith(insidePrefix) && prediction.labels[i - 1] != prediction.labels[i] || labels[prediction.labels[i - 1]].startsWith(outside) && labels[prediction.labels[i]].startsWith(insidePrefix)))) {
+            if(refStartedAt == hypStartedAt && refLabel != null && refLabel.equals(hypLabel)) numOk ++;
+            hypStartedAt = -2;
+            hypLabel = null;
+            }
+            refStartedAt = -1;
+            refLabel = null;
+            }
+            if(ref.startsWith(beginPrefix) || (i > 0 && (labels[example.labels[i - 1]].startsWith(insidePrefix) && labels[example.labels[i]].startsWith(insidePrefix) && example.labels[i - 1] != example.labels[i] || labels[example.labels[i - 1]].startsWith(outside) && labels[example.labels[i]].startsWith(insidePrefix)))) {
+            numRef++;
+            refStartedAt = i;
+            if(ref.startsWith(beginPrefix)) refLabel = ref.substring(beginPrefix.length());
+            else refLabel = ref.substring(insidePrefix.length());
+            }
+            if(hyp.startsWith(beginPrefix) || (i > 0 && (labels[prediction.labels[i - 1]].startsWith(insidePrefix) && labels[prediction.labels[i]].startsWith(insidePrefix) && prediction.labels[i - 1] != prediction.labels[i] || labels[prediction.labels[i - 1]].startsWith(outside) && labels[prediction.labels[i]].startsWith(insidePrefix)))) {
+            numHyp++;
+            hypStartedAt = i;
+            if(hyp.startsWith(beginPrefix)) hypLabel = hyp.substring(beginPrefix.length());
+            else hypLabel = hyp.substring(insidePrefix.length());
+            }
+            }
+            if(refStartedAt == hypStartedAt) numOk ++;*/
     }
+        }
 
     public void train(String filename, int numIters, int numExamples, int iteration) throws IOException {
         BufferedReader input = new BufferedReader(new FileReader(filename));
