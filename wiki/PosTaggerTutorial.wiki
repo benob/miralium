@@ -69,35 +69,35 @@ unigrams: 9674, bigrams: 1, cutoff: 2
 labels: 44
 model: 427592 weights
 iteration 0
-  train: 8936 examples, terr=0.15044373178668757 fscore=0.8495562682133124
-  test: 2012 examples, terr=0.11034890347637039 fscore=0.8896510965236296 (ok=42149.0 ref=47377.0 hyp=47377.0)
+  train: 8936 examples, terr=0.1504 fscore=0.8496
+  test: 2012 examples, terr=0.1103 fscore=0.8897 (ok=42149 ref=47377 hyp=47377)
 iteration 1
-  train: 8936 examples, terr=0.07721263702787079 fscore=0.9227873629721292
-  test: 2012 examples, terr=0.0928509614369842 fscore=0.9071490385630158 (ok=42978.0 ref=47377.0 hyp=47377.0)
+  train: 8936 examples, terr=0.0772 fscore=0.9228
+  test: 2012 examples, terr=0.0929 fscore=0.9071 (ok=42978 ref=47377 hyp=47377)
 iteration 2
-  train: 8936 examples, terr=0.06306706277423285 fscore=0.93693293722576716
-  test: 2012 examples, terr=0.0914156658294109 fscore=0.9085843341705891 (ok=43046.0 ref=47377.0 hyp=47377.0)
+  train: 8936 examples, terr=0.0631 fscore=0.9369
+  test: 2012 examples, terr=0.0914 fscore=0.9086 (ok=43046 ref=47377 hyp=47377)
 iteration 3
-  train: 8936 examples, terr=0.056813727110855014 fscore=0.9431862728891454
-  test: 2012 examples, terr=0.08350043269941111 fscore=0.9164995673005889 (ok=43421.0 ref=47377.0 hyp=47377.0)
+  train: 8936 examples, terr=0.0568 fscore=0.9432
+  test: 2012 examples, terr=0.0835 fscore=0.9165 (ok=43421 ref=47377 hyp=47377)
 iteration 4
-  train: 8936 examples, terr=0.05400822757607674 fscore=0.94599177242392338
-  test: 2012 examples, terr=0.0787724001097579 fscore=0.921227599890242 (ok=43645.0 ref=47377.0 hyp=47377.0)
+  train: 8936 examples, terr=0.0540 fscore=0.9460
+  test: 2012 examples, terr=0.0788 fscore=0.9212 (ok=43645 ref=47377 hyp=47377)
 iteration 5
-  train: 8936 examples, terr=0.052293755638156685 fscore=0.9477062443618434
-  test: 2012 examples, terr=0.07554298499271798 fscore=0.9244570150072821 (ok=43798.0 ref=47377.0 hyp=47377.0)
+  train: 8936 examples, terr=0.0523 fscore=0.9477
+  test: 2012 examples, terr=0.0755 fscore=0.9245 (ok=43798 ref=47377 hyp=47377)
 iteration 6
-  train: 8936 examples, terr=0.051443604263981445 fscore=0.9485563957360186
-  test: 2012 examples, terr=0.07554298499271798 fscore=0.9244570150072821 (ok=43798.0 ref=47377.0 hyp=47377.0)
+  train: 8936 examples, terr=0.0514 fscore=0.9486
+  test: 2012 examples, terr=0.0755 fscore=0.9245 (ok=43798 ref=47377 hyp=47377)
 iteration 7
-  train: 8936 examples, terr=0.05010225431806052 fscore=0.94989774568193958
-  test: 2012 examples, terr=0.07535301939759799 fscore=0.924646980602402 (ok=43807.0 ref=47377.0 hyp=47377.0)
+  train: 8936 examples, terr=0.0501 fscore=0.9499
+  test: 2012 examples, terr=0.0754 fscore=0.9246 (ok=43807 ref=47377 hyp=47377)
 iteration 8
-  train: 8936 examples, terr=0.0487609043721396 fscore=0.951239095627860465
-  test: 2012 examples, terr=0.07296789581442473 fscore=0.9270321041855752 (ok=43920.0 ref=47377.0 hyp=47377.0)
+  train: 8936 examples, terr=0.0488 fscore=0.9512
+  test: 2012 examples, terr=0.0730 fscore=0.9270 (ok=43920 ref=47377 hyp=47377)
 iteration 9
-  train: 8936 examples, terr=0.04886953482550643 fscore=0.95113046517449365
-  test: 2012 examples, terr=0.06828207780146485 fscore=0.9317179221985351 (ok=44142.0 ref=47377.0 hyp=47377.0)
+  train: 8936 examples, terr=0.0489 fscore=0.9511
+  test: 2012 examples, terr=0.0683 fscore=0.9317 (ok=44142 ref=47377 hyp=47377)
 writing model: pos-simple.model
 }}}
 
