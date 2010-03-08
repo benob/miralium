@@ -258,3 +258,5 @@ B
 745734 U04and/Japan
 ...
 }}}
+
+Note that you can then use this model with CRF++ (`crf_learn --convert model.txt model.crf`). You can also load/convert CRF++ text models (`crf_learn --textmodel ...`) with miralium.
