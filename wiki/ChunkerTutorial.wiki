@@ -134,6 +134,47 @@ accuracy:  95.20%; precision:  92.47%; recall:  92.41%; FB1:  92.44
 
 So, you get quite good results on the real eval metric. However, these are based on gold-standard part-of-speech tags, which is not very realistic.
 
+= Similar model with CRF++ =
+You can compare this result with a model created by CRF++. We use a simpler template (without complex bigram features) because CRF++ is much slower to train.
+
+{{{
+cat > chunking.template_simple <<EOF
+U01%x[0,0]
+U02%x[0,1]
+U03%x[0,0]/%x[0,1]
+U04%x[-1,0]/%x[0,0]
+U05%x[-1,1]/%x[0,1]
+B
+EOF
+}}}
+Now, perform training (about 1h):
+{{{
+crf_learn -f 2 -t chunking.template_simple train.txt chunking.model_simple_crf1
+...
+iter=136 terr=0.02549 serr=0.31479 act=1000186 obj=18934.20799 diff=0.00003
+iter=137 terr=0.02551 serr=0.31535 act=1000186 obj=18932.92608 diff=0.00007
+iter=138 terr=0.02545 serr=0.31435 act=1000186 obj=18931.47416 diff=0.00008
+
+Done!3605.31 s
+}}}
+And apply to test data:
+{{{
+crf_test -m chunking.model_simple_crf1 < test.txt | perl conlleval -d "\t"
+processed 47377 tokens with 23852 phrases; found: 23820 phrases; correct: 22129.
+accuracy:  95.47%; precision:  92.90%; recall:  92.78%; FB1:  92.84
+             ADJP: precision:  77.88%; recall:  73.97%; FB1:  75.88  416
+             ADVP: precision:  83.09%; recall:  78.87%; FB1:  80.92  822
+            CONJP: precision:  38.46%; recall:  55.56%; FB1:  45.45  13
+             INTJ: precision: 100.00%; recall:  50.00%; FB1:  66.67  1
+              LST: precision:   0.00%; recall:   0.00%; FB1:   0.00  0
+               NP: precision:  93.13%; recall:  92.95%; FB1:  93.04  12398
+               PP: precision:  95.78%; recall:  97.65%; FB1:  96.71  4905
+              PRT: precision:  72.12%; recall:  70.75%; FB1:  71.43  104
+             SBAR: precision:  85.95%; recall:  78.88%; FB1:  82.26  491
+               VP: precision:  93.68%; recall:  93.92%; FB1:  93.80  4670
+}}}
+The resulting accuracy is not much better even though with the complete template, you should get higher performance.
+
 = Timing =
 
 On a not so recent machine, here is what we get:
