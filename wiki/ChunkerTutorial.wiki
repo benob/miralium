@@ -187,6 +187,7 @@ reading model: chunking.model
 0inputs+64outputs (1major+112213minor)pagefaults 0swaps
 }}}
 
+That's about 10k words per second.
 And for training:
 {{{
 /usr/bin/time ../mira -t -f 2 -n 10 -s 0.01 -iob chunking.template train.txt chunking.model test.txt
@@ -194,6 +195,7 @@ And for training:
 74.88user 0.91system 1:13.31elapsed 103%CPU (0avgtext+0avgdata 0maxresident)k
 0inputs+9064outputs (1major+166190minor)pagefaults 0swaps
 }}}
+It's about 50 times faster than CRF++ and 10 times faster than CRF++ with MIRA training (10 iterations).
 
 = Examining the model =
 
