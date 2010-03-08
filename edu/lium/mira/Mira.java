@@ -27,10 +27,13 @@ import java.util.zip.*;
 import java.io.*;
 import java.nio.*;
 import java.nio.channels.*;
+import java.text.*;
 import gnu.trove.*;
 
 class Mira implements Serializable {
     static final long serialVersionUID = 3L;
+    DecimalFormat formatter = new DecimalFormat("0.0000");
+
     class Example implements Serializable {
         static final long serialVersionUID = 1L;
         Vector<String> lines;
@@ -439,9 +442,9 @@ class Mira implements Serializable {
             maxLoss += example.labels.length;
             num ++;
             scorer.assess(example, prediction);
-            if(num % 100 == 0) System.err.print("\r  train: " + num + " examples, terr=" + (totalLoss / maxLoss) + " fscore=" + scorer.fscore());
+            if(num % 100 == 0) System.err.print("\r  train: " + num + " examples, terr=" + formatter.format(totalLoss / maxLoss) + " fscore=" + formatter.format(scorer.fscore()));
         }
-        System.err.println("\r  train: " + num + " examples, terr=" + (totalLoss / maxLoss) + " fscore=" + scorer.fscore());
+        System.err.println("\r  train: " + num + " examples, terr=" + formatter.format(totalLoss / maxLoss) + " fscore=" + formatter.format(scorer.fscore()));
     }
 
     public void test(BufferedReader input, PrintStream output) throws IOException {
@@ -459,7 +462,7 @@ class Mira implements Serializable {
             maxLoss += example.labels.length;
             num += 1;
             scorer.assess(example, prediction);
-            if(output == null && num % 100 == 0) System.err.print("\r  test: " + num + " examples, terr=" + (loss / maxLoss) + " fscore=" + scorer.fscore());
+            if(output == null && num % 100 == 0) System.err.print("\r  test: " + num + " examples, terr=" + formatter.format(loss / maxLoss) + " fscore=" + formatter.format(scorer.fscore()));
             if(output != null) {
                 for(int i = 0; i < example.lines.size(); i++) {
                     output.println(example.lines.get(i) + " " + labels[prediction.labels[i]]);
@@ -468,7 +471,7 @@ class Mira implements Serializable {
                 //output.println(prediction.score);
             }
         }
-        if(output == null) System.err.println("\r  test: " + num + " examples, terr=" + (loss / maxLoss) + " fscore=" + scorer.fscore() + " (ok=" + scorer.numOk + " ref=" + scorer.numRef + " hyp=" + scorer.numHyp + ")");
+        if(output == null) System.err.println("\r  test: " + num + " examples, terr=" + formatter.format(loss / maxLoss) + " fscore=" + formatter.format(scorer.fscore()) + " (ok=" + (int)scorer.numOk + " ref=" + (int)scorer.numRef + " hyp=" + (int)scorer.numHyp + ")");
     }
 
     private final int getId(int feature, int currentLabel) {
