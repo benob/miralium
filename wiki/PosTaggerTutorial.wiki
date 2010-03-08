@@ -120,8 +120,8 @@ Note that for the prefixes and suffixes, if a word is shorter than the number of
 Using the data used to train the simple tagger, you can run:
 
 {{{
-python ../examples/pos_features.py pos.train.txt > pos-enhanced.train.txt
-python ../examples/pos_features.py pos.train.txt > pos-enhanced.test.txt
+python ../examples/pos_features.py < pos.train.txt > pos-enhanced.train.txt
+python ../examples/pos_features.py < pos.test.txt > pos-enhanced.test.txt
 }}}
 
 And look at the result:
@@ -182,7 +182,7 @@ The `B` feature is defined again to keep context when performing predictions. We
 == Training the model ==
 
 {{{
-../mira -t -f 2 -s 0.01 -n 10 pos-enhanced.template pos-enhanced.train.txt pos-enhanced.model pos-enhanced.test.txt 
+../mira -t -f 2 -s 0.01 -n 10 pos-enhanced.template pos-enhanced.train.txt pos-enhanced.model pos-enhanced.test.txt
 read 27 templates from "pos-enhanced.template"
 counting: 8936
 unigrams: 1647979, bigrams: 1
@@ -190,35 +190,35 @@ unigrams: 222066, bigrams: 1, cutoff: 2
 labels: 44
 model: 9772840 weights
 iteration 0
-  train: 8936 examples, terr=0.06981632007254625 fscore=0.9301836799274538
-  test: 2012 examples, terr=0.050066487958292 fscore=0.949933512041708 (ok=45005.0 ref=47377.0 hyp=47377.0)
+  train: 8936 examples, terr=0.0698 fscore=0.9302
+  test: 2012 examples, terr=0.0501 fscore=0.9499 (ok=45005 ref=47377 hyp=47377)
 iteration 1
-  train: 8936 examples, terr=0.028536747793148725 fscore=0.9714632522068513
-  test: 2012 examples, terr=0.03744432952698567 fscore=0.9625556704730144 (ok=45603.0 ref=47377.0 hyp=47377.0)
+  train: 8936 examples, terr=0.0285 fscore=0.9715
+  test: 2012 examples, terr=0.0374 fscore=0.9626 (ok=45603 ref=47377 hyp=47377)
 iteration 2
-  train: 8936 examples, terr=0.01874111473737407 fscore=0.98125888526262662
-  test: 2012 examples, terr=0.03296958439749245 fscore=0.9670304156025076 (ok=45815.0 ref=47377.0 hyp=47377.0)
+  train: 8936 examples, terr=0.0187 fscore=0.9813
+  test: 2012 examples, terr=0.0330 fscore=0.9670 (ok=45815 ref=47377 hyp=47377)
 iteration 3
-  train: 8936 examples, terr=0.014343942907612161 fscore=0.9856560570923878
-  test: 2012 examples, terr=0.028262659096185912 fscore=0.9717373409038141 (ok=46038.0 ref=47377.0 hyp=47377.0)
+  train: 8936 examples, terr=0.0143 fscore=0.9857
+  test: 2012 examples, terr=0.0283 fscore=0.9717 (ok=46038 ref=47377 hyp=47377)
 iteration 4
-  train: 8936 examples, terr=0.010593830734861401 fscore=0.9894061692651386
-  test: 2012 examples, terr=0.026088608396479303 fscore=0.9739113916035207 (ok=46141.0 ref=47377.0 hyp=47377.0)
+  train: 8936 examples, terr=0.0106 fscore=0.9894
+  test: 2012 examples, terr=0.0261 fscore=0.9739 (ok=46141 ref=47377 hyp=47377)
 iteration 5
-  train: 8936 examples, terr=0.00869515933253671 fscore=0.99130484066746334
-  test: 2012 examples, terr=0.02518099499757266 fscore=0.9748190050024274 (ok=46184.0 ref=47377.0 hyp=47377.0)
+  train: 8936 examples, terr=0.0087 fscore=0.9913
+  test: 2012 examples, terr=0.0252 fscore=0.9748 (ok=46184 ref=47377 hyp=47377)
 iteration 6
-  train: 8936 examples, terr=0.007212117490919911 fscore=0.99278788250908011
-  test: 2012 examples, terr=0.02361905565991937 fscore=0.9763809443400806 (ok=46258.0 ref=47377.0 hyp=47377.0)
+  train: 8936 examples, terr=0.0072 fscore=0.9928
+  test: 2012 examples, terr=0.0236 fscore=0.9764 (ok=46258 ref=47377 hyp=47377)
 iteration 7
-  train: 8936 examples, terr=0.006295843232086602 fscore=0.99370415676791337
-  test: 2012 examples, terr=0.02258479853093273 fscore=0.9774152014690672 (ok=46307.0 ref=47377.0 hyp=47377.0)
+  train: 8936 examples, terr=0.0063 fscore=0.9937
+  test: 2012 examples, terr=0.0226 fscore=0.9774 (ok=46307 ref=47377 hyp=47377)
 iteration 8
-  train: 8936 examples, terr=0.005133969687380447 fscore=0.99486603031261967
-  test: 2012 examples, terr=0.02214154547565274 fscore=0.9778584545243473 (ok=46328.0 ref=47377.0 hyp=47377.0)
+  train: 8936 examples, terr=0.0051 fscore=0.9949
+  test: 2012 examples, terr=0.0221 fscore=0.9779 (ok=46328 ref=47377 hyp=47377)
 iteration 9
-  train: 8936 examples, terr=0.0052000925720385215 fscore=0.9947999074279614
-  test: 2012 examples, terr=0.02188825801549275 fscore=0.9781117419845072 (ok=46340.0 ref=47377.0 hyp=47377.0)
+  train: 8936 examples, terr=0.0052 fscore=0.9948
+  test: 2012 examples, terr=0.0219 fscore=0.9781 (ok=46340 ref=47377 hyp=47377)
 writing model: pos-enhanced.model
 }}}
 
