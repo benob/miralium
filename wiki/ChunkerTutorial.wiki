@@ -175,7 +175,7 @@ accuracy:  95.47%; precision:  92.90%; recall:  92.78%; FB1:  92.84
 }}}
 The resulting accuracy is not much better even though with the complete template, you should get higher performance.
 
-CRF++ has MIRA training, but it doesn't seem to be much faster than regular training, and by looking at the code, you'll see that it actually implements a regular perceptron (Collin's averaged perceptron) which does not perform as good as miralium. For instance, if you use the -a MIRA option with this template, training 10 iterations requires about 12 minutes and yields an accuracy of 90.15.
+CRF++ has MIRA training, but each iteration doesn't seem to be much faster than with regular training, and by looking at the code, you'll see that it actually implements a regular perceptron (Collin's averaged perceptron) which does not perform as good as miralium. For instance, if you use the -a MIRA and -m 10 options with the simple template, training 10 iterations requires about 12 minutes and yields an accuracy of 90.15.
 
 = Timing =
 
