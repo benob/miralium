@@ -188,7 +188,10 @@ class Mira implements Serializable {
                 }
             }
             if(!newFeatures && last < example.unigrams[i].length) {
-                example.unigrams[i] = Arrays.copyOf(example.unigrams[i], last);
+                //example.unigrams[i] = Arrays.copyOf(example.unigrams[i], last);
+                int old[] = example.unigrams[i];
+                example.unigrams[i] = new int[last];
+                System.arraycopy(old, 0, example.unigrams[i], 0, last);
             }
 
             example.bigrams[i] = new int[bigrams.size()];
@@ -204,7 +207,10 @@ class Mira implements Serializable {
                 }
             }
             if(!newFeatures && last < example.bigrams[i].length) {
-                example.bigrams[i] = Arrays.copyOf(example.bigrams[i], last);
+                //example.bigrams[i] = Arrays.copyOf(example.bigrams[i], last);
+                int old[] = example.bigrams[i];
+                example.bigrams[i] = new int[last];
+                System.arraycopy(old, 0, example.bigrams[i], 0, last);
             }
         }
         return example;

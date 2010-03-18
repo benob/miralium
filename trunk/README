@@ -3,7 +3,7 @@ see LICENSE for copying information.
 
 Compile:
 
-javac -cp trove-2.1.0.jar edu/lium/mira/*.java
+javac -source 1.5 -target 1.5 -cp trove-2.1.0.jar edu/lium/mira/*.java
 
 Create jar:
 
