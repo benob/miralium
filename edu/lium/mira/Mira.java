@@ -31,7 +31,7 @@ import java.text.*;
 import gnu.trove.*;
 
 class Mira implements Serializable {
-    static final long serialVersionUID = 3L;
+    static final long serialVersionUID = 4L;
     DecimalFormat formatter = new DecimalFormat("0.0000");
 
     class Example implements Serializable {
@@ -785,6 +785,7 @@ class Mira implements Serializable {
             output.writeInt(numLabels);
             output.writeInt(numUnigramFeatures);
             output.writeInt(numBigramFeatures);
+            output.writeInt(xsize);
             output.writeObject(weights);
             //output.writeObject(avgWeights);
             output.close();
@@ -798,7 +799,7 @@ class Mira implements Serializable {
             output.println("version: 100");
             output.println("cost-factor: 1");
             output.println("maxid: " + weights.length);
-            output.println("xsize: 4");
+            output.println("xsize: " + xsize);
             output.println();
             /* labels */
             for(int i = 0; i < labels.length; i++) output.println(labels[i]);
@@ -884,6 +885,7 @@ class Mira implements Serializable {
             numLabels = input.readInt();
             numUnigramFeatures = input.readInt();
             numBigramFeatures = input.readInt();
+            xsize = input.readInt();
             weights = (double[]) input.readObject();
             //avgWeights = (double[]) input.readObject();
             input.close();

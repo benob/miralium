@@ -1,0 +1,15 @@
+<project name="miralium" basedir="." default="jar">
+    <target name="compile">
+        <javac srcdir="." target="1.5" classpath="trove-2.1.0.jar"/>
+    </target>
+    <target name="jar" depends="compile">
+        <jar destfile="mira.jar" manifest="manifest.txt" duplicate="fail" index="true">
+            <zipfileset src="trove-2.1.0.jar"/>
+            <filelist files="LICENSE LICENSE.trove README"/>
+            <fileset dir="." includes="edu/**"/>
+        </jar>
+    </target>
+    <target name="run" depends="jar">
+        <java jar="mira.jar" classpath="trove-2.1.0.jar"/>
+    </target>
+</project>
