@@ -19,7 +19,7 @@ for line in sys.stdin:
 num = int(sys.argv[1])
 current = 0
 for example in examples:
-    if current > num:
+    if current >= num:
         break
     for line in example:
         print line
