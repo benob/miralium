@@ -20,6 +20,7 @@ num = int(sys.argv[1])
 current = 0
 for example in examples:
     if current <= num:
+        current += 1
         continue
     for line in example:
         print line
