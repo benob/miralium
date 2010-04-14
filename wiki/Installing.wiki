@@ -34,4 +34,4 @@ export PATH=$PATH:~/bin
 {{{
 mira
 }}}
-  # Read [ChunkerTutorial the] [POSTaggerTutorial tutorials].
+  # Read [ChunkerTutorial the] [PosTaggerTutorial tutorials].
