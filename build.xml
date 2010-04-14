@@ -1,6 +1,6 @@
 <project name="miralium" basedir="." default="jar">
     <target name="compile">
-        <javac srcdir="." target="1.5" classpath="trove-2.1.0.jar"/>
+        <javac srcdir="." target="1.5" classpath="trove-2.1.0.jar" includeantruntime="false"/>
     </target>
     <target name="jar" depends="compile">
         <jar destfile="mira.jar" manifest="manifest.txt" duplicate="fail" index="true">
