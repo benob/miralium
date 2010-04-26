@@ -493,7 +493,7 @@ class Mira implements Serializable {
     private final double computeScore(Example example, int position, int label) {
         double score = 0;
         for(int i = 0; i < example.unigrams[position].length; i++) {
-            int id = getId(example.unigrams[position][i], label);
+            final int id = getId(example.unigrams[position][i], label);
             score += weights[id];
         }
         return score;
@@ -502,7 +502,7 @@ class Mira implements Serializable {
     private final double computeScore(Example example, int position1, int label1, int label2) {
         double score = 0;
         for(int i = 0; i < example.bigrams[position1].length; i++) {
-            int id = getId(example.bigrams[position1][i], label2, label1);
+            final int id = getId(example.bigrams[position1][i], label2, label1);
             score += weights[id];
         }
         return score;
