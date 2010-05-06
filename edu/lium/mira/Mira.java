@@ -56,6 +56,7 @@ class Mira implements Serializable {
     int numLabels;
     int numUnigramFeatures;
     int numBigramFeatures;
+    transient int shiftColumns = 0;  
 
     // layout: [unigrams:label x feature] [bigrams:label x label x feature]
     public double weights[];
@@ -99,12 +100,12 @@ class Mira implements Serializable {
                 else this.prefix[i] = prefix.get(i);
             }
         }
-        public String apply(Vector<String[]> parts, int current) {
+        public String apply(Vector<String[]> parts, int current, int shiftColumns) {
             StringBuilder output = new StringBuilder();
             for(int i = 0; i < prefix.length; i++) {
                 if(prefix[i] != null) output.append(prefix[i]);
                 int row = rows[i] + current;
-                int column = columns[i];
+                int column = columns[i] + shiftColumns;
                 if(row >= 0 && row < parts.size()) {
                     String[] line = parts.get(row);
                     if(column >= 0 && column < line.length) {
@@ -169,7 +170,7 @@ class Mira implements Serializable {
             unigrams.clear();
             bigrams.clear();
             for(int j = 0; j < templates.size(); j++) {
-                String feature = templates.get(j).apply(parts, i);
+                String feature = templates.get(j).apply(parts, i, shiftColumns);
                 if(feature != null) {
                     if(feature.startsWith("U")) unigrams.add(feature);
                     else if(feature.startsWith("B")) bigrams.add(feature);
@@ -948,14 +949,39 @@ class Mira implements Serializable {
             }
         }
 
+        public void setShiftColumns(int shiftColumns) {
+            System.out.println(shiftColumns);
+            this.shiftColumns = shiftColumns;
+        }
+
         public void usage(String error) {
             if(error != null) {
                 System.err.println("Unrecognized argument \"" + error + "\"");
             }
             System.err.println("TRAIN: java -Xmx2G Mira -t [-f <cutoff>|-s <sigma>|-n <iter>|-i <model>|-r|-iob|-fi] <template> <train> <model> [heldout]");
-            System.err.println("PREDICT: java -Xmx2G Mira -p <model> [test]");
+            System.err.println("  -t                 learn model weights given training data");
+            System.err.println("  -f <cutoff>        remove features with counts less than or equal to cutoff");
+            System.err.println("  -s <sigma>         hyper parameter corresponding to the maximum weight update after seeing an example");
+            System.err.println("  -n <iter>          perform n iterations (due to averaging, different number of iterations => different iterations)");
+            System.err.println("  -i <model>         input an already trained model");
+            System.err.println("  -r                 randomize starting weights");
+            System.err.println("  -iob               compute f-score using I- (inside), O (outside), B- (begin) prefixes in labels");
+            System.err.println("  -fi                init weights with normalized frequency of features");
+            System.err.println("  <template>         template definition file");
+            System.err.println("  <train>            training data");
+            System.err.println("  <model>            model file name");
+            System.err.println("  [heldout]          compute error rate on an dataset not used for training");
+            System.err.println("PREDICT: java -Xmx2G Mira -p [-shift n] <model> [test]");
+            System.err.println("  -p                 predict labels on test data given a model");
+            System.err.println("  -shift <n>         shift column ids in template by <n> (lets you pass new columns through at test time)");
+            System.err.println("  <model>            model file name");
+            System.err.println("  [test]             test file name, stdin if not specified");
             System.err.println("CONVERT: java -Xmx2G Mira -c [<model> <model.txt>|<model.txt> <model>]");
+            System.err.println("  -c                 convert a binary model to text or vice versa");
+            System.err.println("  <model>            input/output binary model");
+            System.err.println("  <model.txt>        input/output text model (must end in .txt)");
             System.err.println("MERGE: java -Xmx2G Mira -m <output_model> <model1> <model2> ...");
+            System.err.println("  -c                 merge multiple models by adding their weights (no normalization)");
             System.exit(1);
         }
 
@@ -967,6 +993,7 @@ class Mira implements Serializable {
                 int frequency = 0;
                 double sigma = 1;
                 int iterations = 10;
+                int shiftColumns = 0;
                 String templateName = null;
                 String trainName = null;
                 String modelName = null;
@@ -978,13 +1005,13 @@ class Mira implements Serializable {
                 boolean frequencyInit = false;
                 boolean iobScorer = false;
                 while(current < args.length) {
-                    if(args[current].equals("-t")) mode = 0;
-                    else if(args[current].equals("-p")) mode = 1;
-                    else if(args[current].equals("-c")) mode = 2;
-                    else if(args[current].equals("-m")) mode = 3;
-                    else if(mode == 0 && args[current].equals("-f")) frequency = Integer.parseInt(args[ ++ current]);
-                    else if(mode == 0 && args[current].equals("-s")) sigma = Double.parseDouble(args[ ++ current]);
-                    else if(mode == 0 && args[current].equals("-n")) iterations = Integer.parseInt(args[ ++current]);
+                    if(args[current].equals("-t")) mode = 0; // train
+                    else if(args[current].equals("-p")) mode = 1; // predict
+                    else if(args[current].equals("-c")) mode = 2; // convert
+                    else if(args[current].equals("-m")) mode = 3; // merge
+                    else if(mode == 0 && args[current].equals("-f")) frequency = Integer.parseInt(args[++current]);
+                    else if(mode == 0 && args[current].equals("-s")) sigma = Double.parseDouble(args[++current]);
+                    else if(mode == 0 && args[current].equals("-n")) iterations = Integer.parseInt(args[++current]);
                     else if(mode == 0 && args[current].equals("-i")) initialModelName = args[ ++current];
                     else if(mode == 0 && args[current].equals("-r")) randomInit = true;
                     else if(mode == 0 && args[current].equals("-iob")) iobScorer = true;
@@ -993,6 +1020,7 @@ class Mira implements Serializable {
                     else if(mode == 0 && trainName == null) trainName =args[current];
                     else if(mode == 0 && modelName == null) modelName = args[current];
                     else if(mode == 0 && testName == null) testName = args[current];
+                    else if(mode == 1 && args[current].equals("-shift")) shiftColumns = Integer.parseInt(args[++current]);
                     else if(mode == 1 && modelName == null) modelName = args[current];
                     else if(mode == 1 && testName == null) testName = args[current];
                     else if(mode == 2 && modelName == null) modelName = args[current];
@@ -1003,7 +1031,7 @@ class Mira implements Serializable {
                     current ++;
                 }
                 if(modelName == null || mode < 0) mira.usage(null);
-                if(mode == 0) {
+                if(mode == 0) { // train
                     if(iobScorer) mira.setIobScorer();
                     mira.loadTemplates(templateName);
                     mira.setClip(sigma);
@@ -1021,18 +1049,19 @@ class Mira implements Serializable {
                         }
                     }
                     mira.saveModel(modelName);
-                } else if(mode == 1) {
+                } else if(mode == 1) { // predict
                     BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
                     if(testName != null) input = new BufferedReader(new FileReader(testName));
                     if(modelName.endsWith(".txt")) mira.loadTextModel(modelName);
                     else mira.loadModel(modelName);
+                    mira.setShiftColumns(shiftColumns);
                     mira.test(input, System.out);
-                } else if(mode == 2) {
+                } else if(mode == 2) { // convert
                     if(modelName.endsWith(".txt")) mira.loadTextModel(modelName);
                     else mira.loadModel(modelName);
                     if(convertModelName.endsWith(".txt")) mira.saveTextModel(convertModelName);
                     else mira.saveModel(convertModelName);
-                } else if(mode == 3) {
+                } else if(mode == 3) { // merge
                     for(int i = 0; i < mergeModelNames.size(); i++) {
                         if(i == 0) {
                             if(modelName.endsWith(".txt")) mira.loadTextModel(modelName);
