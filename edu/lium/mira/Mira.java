@@ -100,7 +100,7 @@ class Mira implements Serializable {
                 else this.prefix[i] = prefix.get(i);
             }
         }
-        public String apply(Vector<String[]> parts, int current, int shiftColumns) {
+        public String apply(Vector<String[]> parts, int current, int shiftColumns, boolean includeBorderFeatures) {
             StringBuilder output = new StringBuilder();
             for(int i = 0; i < prefix.length; i++) {
                 if(prefix[i] != null) output.append(prefix[i]);
@@ -118,7 +118,7 @@ class Mira implements Serializable {
                         System.err.println(line[line.length - 1] + "\"");
                         System.exit(1);
                     }
-                } else {
+                } else if(includeBorderFeatures) {
                     output.append("_B");
                     output.append(row);
                 }
@@ -142,7 +142,7 @@ class Mira implements Serializable {
     }
 
     public String[] predict(Vector<String[]> parts) {
-        Example example = encodeFeatures(parts, false);
+        Example example = encodeFeatures(parts, false, true);
         Example prediction;
         if(bigramIds.size() > 0) prediction = decodeViterbi(example);
         else prediction = decodeUnigram(example);
@@ -153,7 +153,7 @@ class Mira implements Serializable {
         return output;
     }
 
-    public Example encodeFeatures(Vector<String[]> parts, boolean newFeatures) {
+    public Example encodeFeatures(Vector<String[]> parts, boolean newFeatures, boolean includeBorderFeatures) {
         Example example = new Example();
         example.labels = new int[parts.size()];
         example.unigrams = new int[parts.size()][];
@@ -170,7 +170,7 @@ class Mira implements Serializable {
             unigrams.clear();
             bigrams.clear();
             for(int j = 0; j < templates.size(); j++) {
-                String feature = templates.get(j).apply(parts, i, shiftColumns);
+                String feature = templates.get(j).apply(parts, i, shiftColumns, includeBorderFeatures);
                 if(feature != null) {
                     if(feature.startsWith("U")) unigrams.add(feature);
                     else if(feature.startsWith("B")) bigrams.add(feature);
@@ -230,7 +230,7 @@ class Mira implements Serializable {
             lines.add(line);
         }
         if(line == null && parts.size() == 0) return null;
-        Example example = encodeFeatures(parts, newFeatures);
+        Example example = encodeFeatures(parts, newFeatures, true);
         example.lines = lines;
         return example;
     }
@@ -491,7 +491,7 @@ class Mira implements Serializable {
         //return numLabels * numUnigramFeatures + numLabels * numLabels * feature + previousLabel * numLabels + currentLabel;
     }
 
-    private final double computeScore(Example example, int position, int label) {
+    protected final double computeScore(Example example, int position, int label) {
         double score = 0;
         for(int i = 0; i < example.unigrams[position].length; i++) {
             final int id = getId(example.unigrams[position][i], label);
@@ -500,7 +500,7 @@ class Mira implements Serializable {
         return score;
     }
 
-    private final double computeScore(Example example, int position1, int label1, int label2) {
+    protected final double computeScore(Example example, int position1, int label1, int label2) {
         double score = 0;
         for(int i = 0; i < example.bigrams[position1].length; i++) {
             final int id = getId(example.bigrams[position1][i], label2, label1);
