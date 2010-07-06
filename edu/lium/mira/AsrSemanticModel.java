@@ -25,6 +25,8 @@ import java.util.*;
 import java.io.*;
 
 class AsrSemanticModel extends Mira {
+    double plattA = -1.0;
+    double plattB = 5;
     public double getNgramScore(String text) {
         return getNgramScore(text.split(" "));
     }
@@ -45,7 +47,19 @@ class AsrSemanticModel extends Mira {
             example.score += computeScore(example, position, example.labels[position]);
             if(position > 0) example.score += computeScore(example, position, example.labels[position], example.labels[position - 1]);
         }
-        return example.score;
+        // perform platt calibration
+        return 1.0 / (1.0 + Math.exp(plattA * example.score + plattB));
+    }
+    public AsrSemanticModel(String modelName, double plattA, double plattB) {
+        this.plattA = plattA;
+        this.plattB = plattB;
+        try {
+            if(modelName.endsWith(".txt")) loadTextModel(modelName);
+            else loadModel(modelName);
+        } catch(Exception e) {
+            System.err.println("ERROR: could not load MIRA model \"" + modelName + "\"");
+            e.printStackTrace();
+        }
     }
     public AsrSemanticModel(String modelName) {
         try {
@@ -53,6 +67,35 @@ class AsrSemanticModel extends Mira {
             else loadModel(modelName);
         } catch(Exception e) {
             System.err.println("ERROR: could not load MIRA model \"" + modelName + "\"");
+            e.printStackTrace();
+        }
+    }
+    public static void main(String args[]) {
+        if(args.length != 3 && args.length != 1) {
+            System.err.println("USAGE: java -cp mira.jar edu.lium.mira.AsrSemanticModel <model_name> [<calibration_A> <calibration_B>");
+            System.err.println("Put word sequences in stdin, get bigrams + scores in stdout.");
+            System.err.println("Scores are transformed by 1 / (1 + exp(A * score + B)) A = -1 and B = 5 are the default");
+            System.exit(1);
+        }
+        AsrSemanticModel model = null;
+        if(args.length == 3) model = new AsrSemanticModel(args[0], Double.parseDouble(args[1]), Double.parseDouble(args[2]));
+        else if(args.length == 1) model = new AsrSemanticModel(args[0]);
+        try {
+            BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
+            String line;
+            Vector<String> words = new Vector<String>();
+            while(null != (line = input.readLine())) {
+                String tokens[] = line.trim().split(" ");
+                for(int i = 0; i < tokens.length; i++) {
+                    words.add(tokens[i]);
+                }
+            }
+            for(int i = 0; i < words.size() - 1; i++) {
+                String[] bigram = new String[]{words.get(i), words.get(i + 1)};
+                double score = model.getNgramScore(bigram);
+                System.out.println(bigram[0] + " " + bigram[1] + " " + score);
+            }
+        } catch(Exception e) {
             e.printStackTrace();
         }
     }
