@@ -50,6 +50,15 @@ class AsrSemanticModel extends Mira {
         // perform platt calibration
         return 1.0 / (1.0 + Math.exp(plattA * example.score + plattB));
     }
+
+    /*public double getNgramScore(int id1, int id2) {
+        double score = 0;
+        score += unigramMapping[id1];
+        score += bigramMapping[id1 + id2 * lexiconSize];
+        score += conceptBigramMapping[id1 + id2 * lexiconSize];
+        return score;
+    }*/
+
     public AsrSemanticModel(String modelName, double plattA, double plattB) {
         this.plattA = plattA;
         this.plattB = plattB;
