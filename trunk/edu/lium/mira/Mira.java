@@ -950,7 +950,7 @@ class Mira implements Serializable {
         }
 
         public void setShiftColumns(int shiftColumns) {
-            System.out.println(shiftColumns);
+            //System.out.println(shiftColumns);
             this.shiftColumns = shiftColumns;
         }
 
