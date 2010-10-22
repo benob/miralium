@@ -465,28 +465,30 @@ class Mira implements Serializable {
             Example prediction;
             if(bigramIds.size() > 0) prediction = decodeViterbi(example);
             else prediction = decodeUnigram(example);
-            loss += computeLoss(example, prediction);
-            maxLoss += example.labels.length;
-            num += 1;
-            scorer.assess(example, prediction);
-            if(output == null && num % 100 == 0) System.err.print("\r  test: " + num + " examples, terr=" + formatter.format(loss / maxLoss) + " fscore=" + formatter.format(scorer.fscore()));
-            if(output != null) {
-                for(int i = 0; i < example.lines.size(); i++) {
-                    output.println(example.lines.get(i) + " " + labels[prediction.labels[i]]);
+            if(prediction != null) {
+                loss += computeLoss(example, prediction);
+                maxLoss += example.labels.length;
+                num += 1;
+                scorer.assess(example, prediction);
+                if(output == null && num % 100 == 0) System.err.print("\r  test: " + num + " examples, terr=" + formatter.format(loss / maxLoss) + " fscore=" + formatter.format(scorer.fscore()));
+                if(output != null) {
+                    for(int i = 0; i < example.lines.size(); i++) {
+                        output.println(example.lines.get(i) + " " + labels[prediction.labels[i]]);
+                    }
+                    output.println();
+                    //output.println(prediction.score);
                 }
-                output.println();
-                //output.println(prediction.score);
             }
         }
         if(output == null) System.err.println("\r  test: " + num + " examples, terr=" + formatter.format(loss / maxLoss) + " fscore=" + formatter.format(scorer.fscore()) + " (ok=" + (int)scorer.numOk + " ref=" + (int)scorer.numRef + " hyp=" + (int)scorer.numHyp + ")");
     }
 
-    private final int getId(int feature, int currentLabel) {
+    protected final int getId(int feature, int currentLabel) {
         return feature + currentLabel;
         //return feature * numLabels + currentLabel;
     }
 
-    private final int getId(int feature, int previousLabel, int currentLabel) {
+    protected final int getId(int feature, int previousLabel, int currentLabel) {
         return feature + previousLabel * numLabels + currentLabel;
         //return numLabels * numUnigramFeatures + numLabels * numLabels * feature + previousLabel * numLabels + currentLabel;
     }
@@ -525,7 +527,7 @@ class Mira implements Serializable {
         }
     }
 
-    private Example decodeViterbiBeam(Example example) {
+    protected Example decodeViterbiBeam(Example example) {
         int width = 100;
         if(example.labels.length == 0) {
             Example prediction = new Example();
@@ -582,7 +584,7 @@ class Mira implements Serializable {
         return prediction;
     }
 
-    private Example decodeViterbi(Example example) {
+    protected Example decodeViterbi(Example example) {
         if(example.labels.length == 0) {
             Example prediction = new Example();
             prediction.labels = new int[0];
@@ -640,7 +642,7 @@ class Mira implements Serializable {
         return prediction;
     }
 
-    private Example decodeUnigram(Example example) {
+    protected Example decodeUnigram(Example example) {
         example.score = 0;
         for(int position = 0; position < example.labels.length; position++) {
             example.score += computeScore(example, position, example.labels[position]);
