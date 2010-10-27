@@ -35,7 +35,7 @@ We will train a classifier that recognizes the chunk labels given the words and 
 
 = Defining a template =
 
-Features are extracted from the input using a template. That template contains a set of rules that are applied to each line in the input.
+Features are extracted from the input using a template. That template contains a set of rules that are applied to each line in the input (note that EOF should not appear in the file, it's here to help your shell).
 
 {{{
 cat > chunking.template <<EOF
