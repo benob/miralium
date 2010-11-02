@@ -1,2 +1,2 @@
 #!/bin/sh
-java -Xmx2G -jar `dirname $0`/mira.jar $*
+java -Xmx3G -jar `dirname $0`/mira.jar $*
