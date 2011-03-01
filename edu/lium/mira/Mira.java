@@ -38,6 +38,7 @@ class Mira implements Serializable {
         static final long serialVersionUID = 1L;
         Vector<String> lines;
         double score;
+        double scores[][];
         public int[] labels;
         public int[][] unigrams;
         public int[][] bigrams;
@@ -59,6 +60,7 @@ class Mira implements Serializable {
     int numUnigramFeatures;
     int numBigramFeatures;
     transient int shiftColumns = 0;  
+    transient public int nbest = 1;
 
     // layout: [unigrams:label x feature] [bigrams:label x label x feature]
     public double weights[];
@@ -500,7 +502,20 @@ class Mira implements Serializable {
                 if(output == null && num % 100 == 0) System.err.print("\r  test: " + num + " examples, terr=" + formatter.format(loss / maxLoss) + " fscore=" + formatter.format(scorer.fscore()));
                 if(output != null) {
                     for(int i = 0; i < example.lines.size(); i++) {
-                        output.println(example.lines.get(i) + " " + labels[prediction.labels[i]]);
+                        if(nbest == 1 || prediction.scores == null) {
+                            output.println(example.lines.get(i) + " " + labels[prediction.labels[i]]);
+                        } else {
+                            TreeMap<Double, Integer> nbestLabels = new TreeMap<Double, Integer>();
+                            for(int label = 0; label < numLabels; label ++) {
+                                nbestLabels.put(-prediction.scores[i][label], label);
+                                if(nbestLabels.size() > nbest) nbestLabels.remove(nbestLabels.lastKey());
+                            }
+                            output.print(example.lines.get(i));
+                            for(Integer label: nbestLabels.values()) {
+                                output.print(" " + labels[label]);// + "/" + prediction.scores[i][label]);
+                            }
+                            output.println();
+                        }
                     }
                     output.println();
                     //output.println(prediction.score);
@@ -702,11 +717,13 @@ class Mira implements Serializable {
         prediction.labels = new int[example.labels.length];
         //Arrays.fill(prediction.labels, -1);
         prediction.score = 0;
+        if(nbest > 1) prediction.scores = new double[example.labels.length][numLabels];
         for(int position = 0; position < example.labels.length; position++) {
             double max = 0;
             int argmax = -1;
             for(int label = 0; label < numLabels; label++) {
                 double score = computeScore(example, position, label) + prediction.score;
+                if(nbest > 1) prediction.scores[position][label] = score;
                 //System.err.println("(" + position + "," + label + ")" + computeScore(example, position, label));
                 //if(score > max) {
                 if(argmax == -1 || score > max) {
@@ -1102,6 +1119,7 @@ class Mira implements Serializable {
             System.err.println("PREDICT: java -Xmx2G Mira -p [-shift n] <model> [test]");
             System.err.println("  -p                 predict labels on test data given a model");
             System.err.println("  -shift <n>         shift column ids in template by <n> (lets you pass new columns through at test time)");
+            System.err.println("  -nbest <n>         display n-best labels for unigram models only");
             System.err.println("  <model>            model file name");
             System.err.println("  [test]             test file name, stdin if not specified");
             System.err.println("CONVERT: java -Xmx2G Mira -c [<model> <model.txt>|<model.txt> <model>]");
@@ -1122,6 +1140,7 @@ class Mira implements Serializable {
                 double sigma = 1;
                 int iterations = 10;
                 int shiftColumns = 0;
+                int nbest = 1;
                 String templateName = null;
                 String trainName = null;
                 String modelName = null;
@@ -1151,6 +1170,7 @@ class Mira implements Serializable {
                     else if(mode == 0 && modelName == null) modelName = args[current];
                     else if(mode == 0 && testName == null) testName = args[current];
                     else if(mode == 1 && args[current].equals("-shift")) shiftColumns = Integer.parseInt(args[++current]);
+                    else if(mode == 1 && args[current].equals("-nbest")) nbest = Integer.parseInt(args[++current]);
                     else if(mode == 1 && modelName == null) modelName = args[current];
                     else if(mode == 1 && testName == null) testName = args[current];
                     else if(mode == 2 && modelName == null) modelName = args[current];
@@ -1186,6 +1206,7 @@ class Mira implements Serializable {
                     if(modelName.endsWith(".txt")) mira.loadTextModel(modelName);
                     else mira.loadModel(modelName);
                     mira.setShiftColumns(shiftColumns);
+                    mira.nbest = nbest;
                     mira.test(input, System.out);
                 } else if(mode == 2) { // convert
                     if(modelName.endsWith(".txt")) mira.loadTextModel(modelName);
