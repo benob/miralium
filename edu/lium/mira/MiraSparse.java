@@ -961,6 +961,7 @@ class MiraSparse implements Serializable {
             output.writeInt(numBigramFeatures);
             output.writeInt(xsize);
             output.writeObject(weights);
+            output.writeObject(lookup);
             output.writeInt(numSharedLabels);
             output.writeObject(sharedLabelMapping);
             //output.writeObject(avgWeights);
@@ -999,6 +1000,8 @@ class MiraSparse implements Serializable {
         }
 
         public void loadTextModel(String filename) throws IOException, NumberFormatException {
+            System.err.println("ERROR: reading text models not implemented yet with sparseness");
+            if(true) return;
             System.err.println("reading text model: " + filename);
             BufferedReader input = new BufferedReader(new FileReader(filename));
             String line;
@@ -1067,6 +1070,7 @@ class MiraSparse implements Serializable {
             numBigramFeatures = input.readInt();
             xsize = input.readInt();
             weights = (double[]) input.readObject();
+            lookup = (int[]) input.readObject();
             numSharedLabels = input.readInt();
             sharedLabelMapping = (int[][]) input.readObject();
             //avgWeights = (double[]) input.readObject();
