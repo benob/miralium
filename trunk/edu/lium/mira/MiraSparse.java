@@ -375,7 +375,7 @@ class MiraSparse implements Serializable {
         keys = unigramIds.keys(new String[0]);
         for(String key: keys) {
             int id = unigramIds.get(key);
-            lookupSize += 1 + 2 * unigramLabels.get(id).size();
+            lookupSize += 2 + 2 * unigramLabels.get(id).size();
         }
         lookup = new int[lookupSize];
         int nextWeight = 0;
@@ -394,7 +394,10 @@ class MiraSparse implements Serializable {
                 lookup[nextLookupId + 1 + 2 * i + 1] = nextWeight;
                 nextWeight += 1;
             }
-            nextLookupId += 1 + 2 * labelSet.size();
+            // add "else" weight
+            lookup[nextLookupId + 1 + 2 * labelSetAsArray.length] = nextWeight;
+            nextWeight += 1;
+            nextLookupId += 2 + 2 * labelSet.size();
         }
         keys = bigramIds.keys(new String[0]);
         for(String key: keys) {
@@ -559,25 +562,34 @@ class MiraSparse implements Serializable {
 
     protected final int getId(int feature, int currentLabel) {
         int num = lookup[feature];
-        if(num < 6) {
-            for(int i = 0; i < num; i++) {
-                if(lookup[feature + 1 + i * 2] == currentLabel) return lookup[feature + 1 + i * 2 + 1];
+        int min = 0;
+        int max = num - 1;
+        int mid = 0;
+        boolean found = false;
+        while(min + 10 <= max) {
+            mid = (min + max) / 2;
+            if(lookup[feature + 1 + mid * 2] < currentLabel) {
+                min = mid + 1;
+            } else if(lookup[feature + 1 + mid * 2] > currentLabel) {
+                max = mid - 1;
+            } else {
+                found = true;
+                break;
             }
-        } else {
-            int min = 0;
-            int max = num - 1;
-            int mid;
-            do {
-                mid = min + (max - min) / 2;
-                if(currentLabel > lookup[feature + 1 + mid * 2]) {
-                    min = mid + 1;
-                } else {
-                    max = mid - 1;
-                }
-            } while (!(lookup[feature + 1 + mid * 2] == currentLabel || min > max));
-            if(min <= max) return lookup[feature + 1 + mid * 2 + 1];
         }
-        return -1;
+        if(!found) {
+            mid = min;
+            while(!found && mid <= max) {
+                if(lookup[feature + 1 + mid * 2] == currentLabel) {
+                    found = true;
+                    break;
+                }
+                mid ++;
+            }
+        }
+        if(found) return lookup[feature + 1 + mid * 2 + 1];
+        return lookup[feature + 1 + num * 2]; // return else weight
+        //return -1;
         //return feature * numLabels + currentLabel;
     }
 
