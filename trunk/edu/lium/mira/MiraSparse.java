@@ -393,9 +393,9 @@ class MiraSparse implements Serializable {
             }
             nextLookupId += 1 + 2 * labelSet.size();
         }
-        for(int i = 0; i < lookup.length; i++) {
+        /*for(int i = 0; i < lookup.length; i++) {
             System.out.print(" " + lookup[i]);
-        }
+        }*/
         System.out.println();
         keys = bigramIds.keys(new String[0]);
         for(String key: keys) {
