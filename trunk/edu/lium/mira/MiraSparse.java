@@ -380,12 +380,15 @@ class MiraSparse implements Serializable {
         lookup = new int[lookupSize];
         int nextWeight = 0;
         int nextLookupId = 0;
+        int maxLabelSet = 0;
         for(String key: keys) {
             int id = unigramIds.get(key);
             TIntHashSet labelSet = unigramLabels.get(id);
             unigramIds.put(key, nextLookupId);
             lookup[nextLookupId] = labelSet.size();
             int labelSetAsArray[] = labelSet.toArray();
+            Arrays.sort(labelSetAsArray);
+            if(labelSetAsArray.length > maxLabelSet) maxLabelSet = labelSetAsArray.length;
             for(int i = 0; i < labelSetAsArray.length; i++) {
                 lookup[nextLookupId + 1 + 2 * i] = labelSetAsArray[i];
                 lookup[nextLookupId + 1 + 2 * i + 1] = nextWeight;
@@ -393,17 +396,13 @@ class MiraSparse implements Serializable {
             }
             nextLookupId += 1 + 2 * labelSet.size();
         }
-        /*for(int i = 0; i < lookup.length; i++) {
-            System.out.print(" " + lookup[i]);
-        }*/
-        System.out.println();
         keys = bigramIds.keys(new String[0]);
         for(String key: keys) {
             bigramIds.put(key, nextWeight);
             nextWeight += numLabels * numLabels;
         }
         numWeights = nextWeight;
-        System.err.println("lookup size: " + lookup.length);
+        System.err.println("lookup size: " + lookup.length + ", max labels: " + maxLabelSet);
         return num;
     }
 
@@ -560,8 +559,23 @@ class MiraSparse implements Serializable {
 
     protected final int getId(int feature, int currentLabel) {
         int num = lookup[feature];
-        for(int i = 0; i < num; i++) {
-            if(lookup[feature + 1 + i * 2] == currentLabel) return lookup[feature + 1 + i * 2 + 1];
+        if(num < 6) {
+            for(int i = 0; i < num; i++) {
+                if(lookup[feature + 1 + i * 2] == currentLabel) return lookup[feature + 1 + i * 2 + 1];
+            }
+        } else {
+            int min = 0;
+            int max = num - 1;
+            int mid;
+            do {
+                mid = min + (max - min) / 2;
+                if(currentLabel > lookup[feature + 1 + mid * 2]) {
+                    min = mid + 1;
+                } else {
+                    max = mid - 1;
+                }
+            } while (!(lookup[feature + 1 + mid * 2] == currentLabel || min > max));
+            if(min <= max) return lookup[feature + 1 + mid * 2 + 1];
         }
         return -1;
         //return feature * numLabels + currentLabel;
