@@ -795,13 +795,13 @@ class MiraSparse implements Serializable {
         prediction.labels = new int[example.labels.length];
         //Arrays.fill(prediction.labels, -1);
         prediction.score = 0;
-        prediction.scores = new double[example.labels.length][numLabels];
+        if(nbest > 1) prediction.scores = new double[example.labels.length][numLabels];
         for(int position = 0; position < example.labels.length; position++) {
             double max = 0;
             int argmax = -1;
             for(int label = 0; label < numLabels; label++) {
                 double score = computeScore(example, position, label) + prediction.score;
-                prediction.scores[position][label] = score;
+                if(nbest > 1) prediction.scores[position][label] = score;
                 //System.err.println("(" + position + "," + label + ")" + computeScore(example, position, label));
                 //if(score > max) {
                 if(argmax == -1 || score > max) {
@@ -1209,6 +1209,7 @@ class MiraSparse implements Serializable {
             System.err.println("PREDICT: java -Xmx2G MiraSparse -p [-shift n] <model> [test]");
             System.err.println("  -p                 predict labels on test data given a model");
             System.err.println("  -shift <n>         shift column ids in template by <n> (lets you pass new columns through at test time)");
+            System.err.println("  -nbest <n>         display n-best labels for unigram models only");
             System.err.println("  <model>            model file name");
             System.err.println("  [test]             test file name, stdin if not specified");
             System.err.println("CONVERT: java -Xmx2G MiraSparse -c [<model> <model.txt>|<model.txt> <model>]");
