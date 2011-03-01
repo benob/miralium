@@ -384,14 +384,19 @@ class MiraSparse implements Serializable {
             int id = unigramIds.get(key);
             TIntHashSet labelSet = unigramLabels.get(id);
             unigramIds.put(key, nextLookupId);
-            lookup[id] = labelSet.size();
-            for(int label: labelSet.toArray()) {
-                lookup[id + 1 + 2 * label] = label;
-                lookup[id + 1 + 2 * label + 1] = nextWeight;
+            lookup[nextLookupId] = labelSet.size();
+            int labelSetAsArray[] = labelSet.toArray();
+            for(int i = 0; i < labelSetAsArray.length; i++) {
+                lookup[nextLookupId + 1 + 2 * i] = labelSetAsArray[i];
+                lookup[nextLookupId + 1 + 2 * i + 1] = nextWeight;
                 nextWeight += 1;
             }
             nextLookupId += 1 + 2 * labelSet.size();
         }
+        for(int i = 0; i < lookup.length; i++) {
+            System.out.print(" " + lookup[i]);
+        }
+        System.out.println();
         keys = bigramIds.keys(new String[0]);
         for(String key: keys) {
             bigramIds.put(key, nextWeight);
