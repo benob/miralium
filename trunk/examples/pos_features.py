@@ -39,4 +39,4 @@ for line in sys.stdin.readlines():
     else: features.append('__nil__')
     if label:
         features.append(label)
-    print " ".join(features)
+    sys.stdout.write(" ".join(features) + "\n")
