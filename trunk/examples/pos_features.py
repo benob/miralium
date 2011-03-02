@@ -2,11 +2,13 @@
 
 import sys, re
 
+first = True
 for line in sys.stdin.readlines():
     tokens = line.strip().split()
     # skip empty lines
     if len(tokens) == 0:
-        print
+        sys.stdout.write("\n")
+        first = True
         continue
     #1: word, 2: contains number(Y/N), 3: capitalized(Y/N), 4:contains symbol (Y/N) 5..8 (prefixes from 1 to 4) 9..12 (suffixes from 1 to 4).
     word = tokens[0]
@@ -16,6 +18,8 @@ for line in sys.stdin.readlines():
         label = None
     features = [word.lower()]
     if re.search(r'\d', word): features.append('Y')
+    else: features.append('N')
+    if first: features.append('Y')
     else: features.append('N')
     if re.match(r'^[A-Z][a-z]', word):features.append('Y')
     else: features.append('N')
@@ -40,3 +44,4 @@ for line in sys.stdin.readlines():
     if label:
         features.append(label)
     sys.stdout.write(" ".join(features) + "\n")
+    first = False
