@@ -247,6 +247,8 @@ could N N N c co cou coul d ld uld ould MD
 
 The predicted tags are at the end of each line. You can check the intermediate results to get an idea of how each step works.
 
+<wiki:gadget url="http://miralium.googlecode.com/svn/trunk/demo/tagger-gadget.xml" border="0" />
+
 = Going further =
 
 Here are some directions you can explore:
