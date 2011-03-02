@@ -218,9 +218,6 @@ function show_internals(words, features, cliques, prediction) {
     var target = document.getElementById("internals");
     if(target.style.display == 'none') return;
     var lines = [];
-    lines.push("<ul><li><b>Source:</b></li></ul>");
-    lines.push('<a href="viterbi.js">viterbi.js</a>, <a href="model.js">model.js</a>, <a href="convert_model.py">convert_model.py</a> (use with <a href="http://code.google.com/p/miralium/">miralium</a> or <a href="http://crfpp.sourceforge.net/">CRF++</a> text models).');
-    lines.push('Check the miralium pos-tagger <a href="http://code.google.com/p/miralium/wiki/PosTaggerTutorial">tutorial</a> for info on how to train models.');
     lines.push("<ul><li><b>Features:</b></li></ul>");
     lines.push("<table>");
     for(var i = 0; i < words.length; i++) {
@@ -270,6 +267,7 @@ function update() {
     var prediction = run_tagger(textarea.value, false);
     var result = document.getElementById("output");
     output.innerHTML = prediction.join(" ");
+    gadgets.window.adjustHeight();
     return true;
 }
 
