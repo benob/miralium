@@ -1,0 +1,2 @@
+Javascript demo of the miralium pos-tagger. The model is rather crude to keep the download reasonable. Run ./create_model.sh to regenerate the model.js file.
+
