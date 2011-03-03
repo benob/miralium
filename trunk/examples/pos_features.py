@@ -16,7 +16,7 @@ for line in sys.stdin.readlines():
         label = tokens[1]
     else:
         label = None
-    features = [word.lower()]
+    features = [word, word.lower()]
     if re.search(r'\d', word): features.append('Y')
     else: features.append('N')
     if first: features.append('Y')
