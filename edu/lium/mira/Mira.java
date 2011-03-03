@@ -61,6 +61,7 @@ class Mira implements Serializable {
     int numBigramFeatures;
     transient int shiftColumns = 0;  
     transient public int nbest = 1;
+    transient public boolean printFeatures = false;
 
     // layout: [unigrams:label x feature] [bigrams:label x label x feature]
     public double weights[];
@@ -187,6 +188,7 @@ class Mira implements Serializable {
                     example.unigrams[i][j] = unigramIds.adjustOrPutValue(unigrams.get(j), 0, unigramIds.size());
                 } else {
                     if(unigramIds.containsKey(unigrams.get(j))) {
+                        if(printFeatures) System.out.print(unigrams.get(j) + " ");
                         example.unigrams[i][last] = unigramIds.get(unigrams.get(j));
                         last ++;
                     }
@@ -206,6 +208,7 @@ class Mira implements Serializable {
                     example.bigrams[i][j] = bigramIds.adjustOrPutValue(bigrams.get(j), 0, bigramIds.size());
                 } else {
                     if(bigramIds.containsKey(bigrams.get(j))) {
+                        if(printFeatures) System.out.print(bigrams.get(j) + " ");
                         example.bigrams[i][last] = bigramIds.get(bigrams.get(j));
                         last ++;
                     }
@@ -217,7 +220,9 @@ class Mira implements Serializable {
                 example.bigrams[i] = new int[last];
                 System.arraycopy(old, 0, example.bigrams[i], 0, last);
             }
+            if(printFeatures) System.out.println(current[current.length - 1]);
         }
+        if(printFeatures) System.out.println();
         return example;
     }
 
@@ -1120,6 +1125,7 @@ class Mira implements Serializable {
             System.err.println("  -p                 predict labels on test data given a model");
             System.err.println("  -shift <n>         shift column ids in template by <n> (lets you pass new columns through at test time)");
             System.err.println("  -nbest <n>         display n-best labels for unigram models only");
+            System.err.println("  -printFeatures     display actual features to stdout");
             System.err.println("  <model>            model file name");
             System.err.println("  [test]             test file name, stdin if not specified");
             System.err.println("CONVERT: java -Xmx2G Mira -c [<model> <model.txt>|<model.txt> <model>]");
@@ -1171,6 +1177,7 @@ class Mira implements Serializable {
                     else if(mode == 0 && testName == null) testName = args[current];
                     else if(mode == 1 && args[current].equals("-shift")) shiftColumns = Integer.parseInt(args[++current]);
                     else if(mode == 1 && args[current].equals("-nbest")) nbest = Integer.parseInt(args[++current]);
+                    else if(mode == 1 && args[current].equals("-printFeatures")) mira.printFeatures = true;
                     else if(mode == 1 && modelName == null) modelName = args[current];
                     else if(mode == 1 && testName == null) testName = args[current];
                     else if(mode == 2 && modelName == null) modelName = args[current];
