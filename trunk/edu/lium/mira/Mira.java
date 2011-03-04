@@ -32,13 +32,13 @@ import gnu.trove.*;
 
 class Mira implements Serializable {
     static final long serialVersionUID = 5L;
-    DecimalFormat formatter = new DecimalFormat("0.0000");
+    DecimalFormat formatter = new DecimalFormat("0.00000");
 
     class Example implements Serializable {
         static final long serialVersionUID = 1L;
         Vector<String> lines;
         double score;
-        double scores[][];
+        double posteriors[][];
         public int[] labels;
         public int[][] unigrams;
         public int[][] bigrams;
@@ -59,9 +59,10 @@ class Mira implements Serializable {
     int numLabels;
     int numUnigramFeatures;
     int numBigramFeatures;
-    transient int shiftColumns = 0;  
-    transient public int nbest = 1;
-    transient public boolean printFeatures = false;
+    int shiftColumns = 0;  
+    public int nbest = 1;
+    public boolean maxPosteriors = false;
+    public boolean printFeatures = false;
 
     // layout: [unigrams:label x feature] [bigrams:label x label x feature]
     public double weights[];
@@ -474,8 +475,10 @@ class Mira implements Serializable {
         if(iobScorer) scorer = new IOBScorer();
         while(null != (example = nextExample(input, false))) {
             Example prediction;
-            if(bigramIds.size() > 0) prediction = decodeViterbi(example);
-            else prediction = decodeUnigram(example);
+            //if(bigramIds.size() > 0) prediction = decodeViterbi(example);
+            //else prediction = decodeUnigram(example);
+            //if(iteration == 0)maxPosteriors = false; else maxPosteriors = true;
+            prediction = decodeViterbi(example);
             double avgUpdate = (double)(numIters * numExamples - (numExamples * ((iteration + 1) - 1) + (num + 1)) + 1);
             double loss = computeLoss(example, prediction);
             loss = update(example, prediction, avgUpdate, loss);
@@ -495,10 +498,11 @@ class Mira implements Serializable {
         Example example;
         FScorer scorer = new FScorer();
         if(iobScorer) scorer = new IOBScorer();
+        NBest<Integer> nbestLabels = new NBest<Integer>(nbest);
         while(null != (example = nextExample(input, false))) {
             Example prediction;
-            if(bigramIds.size() > 0) prediction = decodeViterbi(example);
-            else prediction = decodeUnigram(example);
+            /*if(bigramIds.size() > 0)*/ prediction = decodeViterbi(example);
+            //else prediction = decodeUnigram(example);
             if(prediction != null) {
                 loss += computeLoss(example, prediction);
                 maxLoss += example.labels.length;
@@ -507,17 +511,23 @@ class Mira implements Serializable {
                 if(output == null && num % 100 == 0) System.err.print("\r  test: " + num + " examples, terr=" + formatter.format(loss / maxLoss) + " fscore=" + formatter.format(scorer.fscore()));
                 if(output != null) {
                     for(int i = 0; i < example.lines.size(); i++) {
-                        if(nbest == 1 || prediction.scores == null) {
+                        if(nbest == 1 || prediction.posteriors == null) {
                             output.println(example.lines.get(i) + " " + labels[prediction.labels[i]]);
                         } else {
-                            TreeMap<Double, Integer> nbestLabels = new TreeMap<Double, Integer>();
+                            /*nbestLabels.clear();
                             for(int label = 0; label < numLabels; label ++) {
-                                nbestLabels.put(-prediction.scores[i][label], label);
-                                if(nbestLabels.size() > nbest) nbestLabels.remove(nbestLabels.lastKey());
+                                nbestLabels.insertNmax(prediction.posteriors[i][label], label);
                             }
+                            nbestLabels.sortNmax();
                             output.print(example.lines.get(i));
-                            for(Integer label: nbestLabels.values()) {
-                                output.print(" " + labels[label]);// + "/" + prediction.scores[i][label]);
+                            for(int best = 0; best < nbestLabels.size(); best++) {
+                                int label = nbestLabels.get(best);
+                                output.print(" " + labels[label] + "/" + formatter.format(prediction.posteriors[i][label]));
+                            }
+                            output.println();*/
+                            output.print(example.lines.get(i).replace(" ", "\t") + "\t" + labels[prediction.labels[i]] + "/" + formatter.format(prediction.posteriors[i][prediction.labels[i]]));
+                            for(int label = 0; label < numLabels; label++) {
+                                output.print("\t" + labels[label] + "/" + formatter.format(prediction.posteriors[i][label]));
                             }
                             output.println();
                         }
@@ -655,27 +665,66 @@ class Mira implements Serializable {
         return prediction;
     }
 
+    // accurate log-space addition from CRF++
+    final double logSumExp(double x, double y) {
+        final double vmin = x > y ? y : x;
+        final double vmax = x > y ? x : y;
+        if (vmax > vmin + 50) {
+            return vmax;
+        } else {
+            return vmax + Math.log(Math.exp(vmin - vmax) + 1.0);
+        }
+    }
+
     protected Example decodeViterbi(Example example) {
-        if(example.labels.length == 0) {
+        int size = example.labels.length;
+        if(size == 0) {
             Example prediction = new Example();
             prediction.labels = new int[0];
             return prediction;
         }
-        double score[][] = new double[example.labels.length][numLabels];
-        int previous[][] = new int[example.labels.length][numLabels];
-        for(int position = 0; position < example.labels.length; position++) {
-            if(position == 0) {
-                for(int label = 0; label < numLabels; label++) {
-                    score[position][label] = computeScore(example, position, label);
-                    previous[position][label] = -1;
+        double emissions[][] = new double[size][numLabels];
+        double transitions[][][] = new double[size][numLabels][numLabels];
+        double alpha[][] = null;
+        double beta[][] = null;
+        double score[][] = null;
+        int previous[][] = null;
+        if(!maxPosteriors) {
+            score = new double[size][numLabels];
+            previous = new int[size][numLabels];
+        }
+        if(maxPosteriors || nbest > 1) {
+            alpha = new double[size][numLabels];
+            beta = new double[size][numLabels];
+        }
+        // compute emissions
+        for(int position = 0; position < size; position++) {
+            for(int label = 0; label < numLabels; label++) {
+                emissions[position][label] = computeScore(example, position, label);
+            }
+        }
+        // compute transitions
+        for(int position = 1; position < size; position++) {
+            for(int label = 0; label < numLabels; label++) {
+                for(int previousLabel = 0; previousLabel < numLabels; previousLabel++) {
+                    transitions[position][label][previousLabel] = computeScore(example, position, label, previousLabel);
                 }
-            } else {
+            }
+        }
+        Example prediction = new Example();
+        prediction.labels = new int[size];
+        if(!maxPosteriors) {
+            // viterbi
+            for(int label = 0; label < numLabels; label++) {
+                score[0][label] = emissions[0][label];
+                previous[0][label] = -1;
+            }
+            for(int position = 1; position < size; position++) {
                 for(int label = 0; label < numLabels; label++) {
                     double max = 0;
                     int argmax = -1;
-                    double labelScore = computeScore(example, position, label);
                     for(int previousLabel = 0; previousLabel < numLabels; previousLabel++) {
-                        double scoreByPrevious = labelScore + computeScore(example, position, label, previousLabel) + score[position - 1][previousLabel];
+                        double scoreByPrevious = emissions[position][label] + transitions[position][label][previousLabel] + score[position - 1][previousLabel];
                         if(scoreByPrevious > max || argmax == -1) {
                             max = scoreByPrevious;
                             argmax = previousLabel;
@@ -685,27 +734,81 @@ class Mira implements Serializable {
                     previous[position][label] = argmax;
                 }
             }
-        }
-        double max = 0;
-        int argmax = -1;
-        for(int label = 0; label < numLabels; label++) {
-            if(argmax == -1 || score[example.labels.length - 1][label] > max) {
-                max = score[example.labels.length - 1][label];
-                argmax = label;
+            // backtrack viterbi
+            double max = 0;
+            int argmax = -1;
+            for(int label = 0; label < numLabels; label++) {
+                if(argmax == -1 || score[size - 1][label] > max) {
+                    max = score[size - 1][label];
+                    argmax = label;
+                }
+            }
+            prediction.score = max;
+            int current = size - 1;
+            while(current >= 0) {
+                prediction.labels[current] = argmax;
+                argmax = previous[current][argmax];
+                current -= 1;
             }
         }
-        Example prediction = new Example();
-        prediction.labels = new int[example.labels.length];
-        prediction.score = max;
-        int current = example.labels.length - 1;
-        while(current >= 0) {
-            prediction.labels[current] = argmax;
-            argmax = previous[current][argmax];
-            current -= 1;
+
+        if(maxPosteriors || nbest > 1) {
+            // alpha
+            for(int label = 0; label < numLabels; label++) alpha[0][label] = emissions[0][label];
+            for(int position = 1; position < size; position++) {
+                for(int label = 0; label < numLabels; label++) {
+                    double sum = 0;
+                    for(int previousLabel = 0; previousLabel < numLabels; previousLabel++) {
+                        sum = logSumExp(sum, alpha[position - 1][previousLabel] + transitions[position][label][previousLabel]);
+                    }
+                    alpha[position][label] = sum + emissions[position][label];
+                }
+            }
+            // beta
+            for(int label = 0; label < numLabels; label++) beta[size - 1][label] = emissions[size - 1][label];
+            for(int position = size - 2; position >= 0; position--) {
+                for(int label = 0; label < numLabels; label++) {
+                    double sum = 0;
+                    for(int nextLabel = 0; nextLabel < numLabels; nextLabel++) {
+                        sum = logSumExp(sum, beta[position + 1][nextLabel] + transitions[position + 1][nextLabel][label]);
+                    }
+                    beta[position][label] = sum + emissions[position][label];
+                }
+            }
+            // normalization
+            double normalization = beta[0][0];
+            for(int label = 1; label < numLabels; label++) {
+                normalization = logSumExp(normalization, beta[0][label]);
+            }
+
+            // posteriors
+            prediction.posteriors = new double[size][numLabels];
+            for(int position = 0; position < size; position++) {
+                for(int label = 0; label < numLabels; label++) {
+                    prediction.posteriors[position][label] = Math.exp(alpha[position][label] + beta[position][label] 
+                                                          - emissions[position][label] - normalization);
+                }
+            }
+            if(maxPosteriors) {
+                prediction.score = 0;
+                for(int position = 0; position < size; position++) {
+                    double max = 0;
+                    int argmax = -1;
+                    for(int label = 0; label < numLabels; label++) {
+                        if(argmax == -1 || prediction.posteriors[position][label] > max) {
+                            max = prediction.posteriors[position][label];
+                            argmax = label;
+                        }
+                    }
+                    prediction.score += max;
+                    prediction.labels[position] = argmax;
+                }
+            }
         }
 
+        // score reference
         example.score = 0;
-        for(int position = 0; position < example.labels.length; position++) {
+        for(int position = 0; position < size; position++) {
             example.score += computeScore(example, position, example.labels[position]);
             if(position > 0) example.score += computeScore(example, position, example.labels[position], example.labels[position - 1]);
         }
@@ -722,13 +825,13 @@ class Mira implements Serializable {
         prediction.labels = new int[example.labels.length];
         //Arrays.fill(prediction.labels, -1);
         prediction.score = 0;
-        if(nbest > 1) prediction.scores = new double[example.labels.length][numLabels];
+        if(nbest > 1) prediction.posteriors = new double[example.labels.length][numLabels];
         for(int position = 0; position < example.labels.length; position++) {
             double max = 0;
             int argmax = -1;
             for(int label = 0; label < numLabels; label++) {
                 double score = computeScore(example, position, label) + prediction.score;
-                if(nbest > 1) prediction.scores[position][label] = score;
+                if(nbest > 1) prediction.posteriors[position][label] = score;
                 //System.err.println("(" + position + "," + label + ")" + computeScore(example, position, label));
                 //if(score > max) {
                 if(argmax == -1 || score > max) {
@@ -1117,6 +1220,7 @@ class Mira implements Serializable {
             System.err.println("  -iob               compute f-score using I- (inside), O (outside), B- (begin) prefixes in labels");
             System.err.println("  -fi                init weights with normalized frequency of features");
             System.err.println("  -labels <file>     shared weight label mapping file");
+            System.err.println("  -map               use maximum a posteriori prediction");
             System.err.println("  <template>         template definition file");
             System.err.println("  <train>            training data");
             System.err.println("  <model>            model file name");
@@ -1125,6 +1229,7 @@ class Mira implements Serializable {
             System.err.println("  -p                 predict labels on test data given a model");
             System.err.println("  -shift <n>         shift column ids in template by <n> (lets you pass new columns through at test time)");
             System.err.println("  -nbest <n>         display n-best labels for unigram models only");
+            System.err.println("  -map               use maximum a posteriori prediction");
             System.err.println("  -printFeatures     display actual features to stdout");
             System.err.println("  <model>            model file name");
             System.err.println("  [test]             test file name, stdin if not specified");
@@ -1147,6 +1252,7 @@ class Mira implements Serializable {
                 int iterations = 10;
                 int shiftColumns = 0;
                 int nbest = 1;
+                boolean maxPosteriors = false;
                 String templateName = null;
                 String trainName = null;
                 String modelName = null;
@@ -1171,6 +1277,7 @@ class Mira implements Serializable {
                     else if(mode == 0 && args[current].equals("-iob")) iobScorer = true;
                     else if(mode == 0 && args[current].equals("-fi")) frequencyInit = true;
                     else if(mode == 0 && args[current].equals("-labels")) sharedLabelFile = args[ ++current];
+                    else if((mode == 0 || mode == 1) && args[current].equals("-map")) maxPosteriors = true;
                     else if(mode == 0 && templateName == null) templateName =args[current];
                     else if(mode == 0 && trainName == null) trainName =args[current];
                     else if(mode == 0 && modelName == null) modelName = args[current];
@@ -1192,6 +1299,7 @@ class Mira implements Serializable {
                     if(iobScorer) mira.setIobScorer();
                     mira.loadTemplates(templateName);
                     mira.setClip(sigma);
+                    mira.maxPosteriors = maxPosteriors;
                     int numExamples = mira.count(trainName, frequency);
                     if(sharedLabelFile != null) mira.loadSharedLabels(sharedLabelFile);
                     mira.initModel(randomInit);
@@ -1214,6 +1322,7 @@ class Mira implements Serializable {
                     else mira.loadModel(modelName);
                     mira.setShiftColumns(shiftColumns);
                     mira.nbest = nbest;
+                    mira.maxPosteriors = maxPosteriors;
                     mira.test(input, System.out);
                 } else if(mode == 2) { // convert
                     if(modelName.endsWith(".txt")) mira.loadTextModel(modelName);
