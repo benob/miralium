@@ -156,6 +156,10 @@ public class NBest<T> {
         return num;
     }
 
+    public void clear() {
+        num = 0;
+    }
+
     public static void main(String args[]) {
         int lineNum = 1;
         String line = "";
