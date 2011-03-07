@@ -61,6 +61,7 @@ class Mira implements Serializable {
     int numBigramFeatures;
     int shiftColumns = 0;  
     public int nbest = 1;
+    public int beamSize = 0;
     public boolean maxPosteriors = false;
     public boolean printFeatures = false;
 
@@ -608,56 +609,70 @@ class Mira implements Serializable {
         }
     }
 
-    protected Example decodeViterbiBeam(Example example) {
-        int width = 100;
-        if(example.labels.length == 0) {
+    protected Example decodeViterbiBeam(Example example, int beamSize) {
+        int size = example.labels.length;
+        if(size == 0) {
             Example prediction = new Example();
             prediction.labels = new int[0];
             return prediction;
         }
-        Decision beam[][] = new Decision[example.labels.length][numLabels];
-        for(int position = 0; position < example.labels.length; position++) {
+        double emissions[][] = new double[size][numLabels];
+        double score[][] = new double[size][numLabels];
+        int previous[][] = new int[size][numLabels];
+        NBestInt beam = new NBestInt(beamSize);
+        
+        // compute emissions
+        for(int position = 0; position < size; position++) {
             for(int label = 0; label < numLabels; label++) {
-                beam[position][label] = new Decision(label, computeScore(example, position, label), null);
+                emissions[position][label] = computeScore(example, position, label);
+                previous[position][label] = -1;
             }
-            Arrays.sort(beam[position]);
         }
-        for(int position = 1; position < example.labels.length; position++) {
-            Arrays.sort(beam[position - 1]);
-            for(int i = 0; i < numLabels / 2; i++) {
-                double max = 0;
-                int argmax = -1;
-                for(int j = 0; j < width; j++) {
-                    double score = beam[position - 1][j].score + beam[position][i].score + computeScore(example, position, beam[position][i].label, beam[position - 1][j].label);
-                    if(argmax == -1 || score > max) {
-                        max = score;
-                        argmax = j;
+
+        for(int label = 0; label < numLabels; label++) {
+            score[0][label] = emissions[0][label];
+            previous[0][label] = -1;
+            beam.insertNmax(score[0][label], label);
+        }
+        for(int position = 1; position < size; position++) {
+            for(int rank = 0; rank < beam.size(); rank++) {
+                int previousLabel = beam.get(rank);
+                double scoreByPrevious = beam.getValue(rank);
+                for(int label = 0; label < numLabels; label++) {
+                    double transition = computeScore(example, position, label, previousLabel);
+                    double result = emissions[position][label] + transition + scoreByPrevious;
+                    if(previous[position][label] == -1 || result > score[position][label]) {
+                        score[position][label] = result;
+                        previous[position][label] = previousLabel;
                     }
                 }
-                beam[position][i].score = max;
-                beam[position][i].previous = beam[position - 1][argmax];
+            }
+            beam.clear();
+            for(int label = 0; label< numLabels; label++) {
+                beam.insertNmax(score[position][label], label);
             }
         }
-        double max = 0;
-        Decision argmax = null;
-        for(int i = 0; i < width; i++) {
-            if(argmax == null || beam[example.labels.length - 1][i].score > max) {
-                max = beam[example.labels.length - 1][i].score;
-                argmax = beam[example.labels.length - 1][i];
+        // backtrack viterbi
+        double max = beam.get(0);
+        int argmax = 0;
+        for(int rank = 1; rank < beam.size(); rank++) {
+            if(beam.getValue(rank) > max) {
+                max = beam.getValue(rank);
+                argmax = beam.get(rank);
             }
         }
         Example prediction = new Example();
-        prediction.labels = new int[example.labels.length];
+        prediction.labels = new int[size];
         prediction.score = max;
-        int current = example.labels.length - 1;
+        int current = size - 1;
         while(current >= 0) {
-            prediction.labels[current] = argmax.label;
-            argmax = argmax.previous;
+            prediction.labels[current] = argmax;
+            argmax = previous[current][argmax];
             current -= 1;
         }
-
+        // score reference
         example.score = 0;
-        for(int position = 0; position < example.labels.length; position++) {
+        for(int position = 0; position < size; position++) {
             example.score += computeScore(example, position, example.labels[position]);
             if(position > 0) example.score += computeScore(example, position, example.labels[position], example.labels[position - 1]);
         }
@@ -677,6 +692,7 @@ class Mira implements Serializable {
     }
 
     protected Example decodeViterbi(Example example) {
+        if(beamSize > 1) return decodeViterbiBeam(example, beamSize);
         int size = example.labels.length;
         if(size == 0) {
             Example prediction = new Example();
@@ -1252,6 +1268,7 @@ class Mira implements Serializable {
                 int iterations = 10;
                 int shiftColumns = 0;
                 int nbest = 1;
+                int beamSize = 0;
                 boolean maxPosteriors = false;
                 String templateName = null;
                 String trainName = null;
@@ -1278,6 +1295,7 @@ class Mira implements Serializable {
                     else if(mode == 0 && args[current].equals("-fi")) frequencyInit = true;
                     else if(mode == 0 && args[current].equals("-labels")) sharedLabelFile = args[ ++current];
                     else if((mode == 0 || mode == 1) && args[current].equals("-map")) maxPosteriors = true;
+                    else if((mode == 0 || mode == 1) && args[current].equals("-beam")) beamSize = Integer.parseInt(args[++current]);
                     else if(mode == 0 && templateName == null) templateName =args[current];
                     else if(mode == 0 && trainName == null) trainName =args[current];
                     else if(mode == 0 && modelName == null) modelName = args[current];
@@ -1300,6 +1318,7 @@ class Mira implements Serializable {
                     mira.loadTemplates(templateName);
                     mira.setClip(sigma);
                     mira.maxPosteriors = maxPosteriors;
+                    mira.beamSize = beamSize;
                     int numExamples = mira.count(trainName, frequency);
                     if(sharedLabelFile != null) mira.loadSharedLabels(sharedLabelFile);
                     mira.initModel(randomInit);
@@ -1322,6 +1341,7 @@ class Mira implements Serializable {
                     else mira.loadModel(modelName);
                     mira.setShiftColumns(shiftColumns);
                     mira.nbest = nbest;
+                    mira.beamSize = beamSize;
                     mira.maxPosteriors = maxPosteriors;
                     mira.test(input, System.out);
                 } else if(mode == 2) { // convert
