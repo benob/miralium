@@ -61,6 +61,7 @@ class Mira implements Serializable {
     int numBigramFeatures;
     int shiftColumns = 0;  
     public int nbest = 1;
+    public boolean printScores = false;
     public int beamSize = 0;
     public boolean maxPosteriors = false;
     public boolean printFeatures = false;
@@ -260,6 +261,8 @@ class Mira implements Serializable {
     }
 
     public void loadSharedLabels(String filename) throws IOException {
+        System.err.println("ERROR: shared labels disabled in this build");
+        System.exit(1);
         BufferedReader input = new BufferedReader(new FileReader(filename));
         TObjectIntHashMap<String> knownSharedLabels = new TObjectIntHashMap<String>();
         sharedLabelMapping = new int[numLabels][];
@@ -476,10 +479,8 @@ class Mira implements Serializable {
         if(iobScorer) scorer = new IOBScorer();
         while(null != (example = nextExample(input, false))) {
             Example prediction;
-            //if(bigramIds.size() > 0) prediction = decodeViterbi(example);
-            //else prediction = decodeUnigram(example);
-            //if(iteration == 0)maxPosteriors = false; else maxPosteriors = true;
-            prediction = decodeViterbi(example);
+            if(bigramIds.size() > 0) prediction = decodeViterbi(example);
+            else prediction = decodeUnigram(example);
             double avgUpdate = (double)(numIters * numExamples - (numExamples * ((iteration + 1) - 1) + (num + 1)) + 1);
             double loss = computeLoss(example, prediction);
             loss = update(example, prediction, avgUpdate, loss);
@@ -502,8 +503,8 @@ class Mira implements Serializable {
         NBest<Integer> nbestLabels = new NBest<Integer>(nbest);
         while(null != (example = nextExample(input, false))) {
             Example prediction;
-            /*if(bigramIds.size() > 0)*/ prediction = decodeViterbi(example);
-            //else prediction = decodeUnigram(example);
+            if(bigramIds.size() > 0) prediction = decodeViterbi(example);
+            else prediction = decodeUnigram(example);
             if(prediction != null) {
                 loss += computeLoss(example, prediction);
                 maxLoss += example.labels.length;
@@ -515,7 +516,7 @@ class Mira implements Serializable {
                         if(nbest == 1 || prediction.posteriors == null) {
                             output.println(example.lines.get(i) + " " + labels[prediction.labels[i]]);
                         } else {
-                            /*nbestLabels.clear();
+                            nbestLabels.clear();
                             for(int label = 0; label < numLabels; label ++) {
                                 nbestLabels.insertNmax(prediction.posteriors[i][label], label);
                             }
@@ -523,14 +524,14 @@ class Mira implements Serializable {
                             output.print(example.lines.get(i));
                             for(int best = 0; best < nbestLabels.size(); best++) {
                                 int label = nbestLabels.get(best);
-                                output.print(" " + labels[label] + "/" + formatter.format(prediction.posteriors[i][label]));
+                                output.print(" " + labels[label] + (printScores ? "/" + formatter.format(prediction.posteriors[i][label]) : ""));
                             }
-                            output.println();*/
-                            output.print(example.lines.get(i).replace(" ", "\t") + "\t" + labels[prediction.labels[i]] + "/" + formatter.format(prediction.posteriors[i][prediction.labels[i]]));
+                            output.println();
+                            /*output.print(example.lines.get(i).replace(" ", "\t") + "\t" + labels[prediction.labels[i]] + "/" + formatter.format(prediction.posteriors[i][prediction.labels[i]]));
                             for(int label = 0; label < numLabels; label++) {
                                 output.print("\t" + labels[label] + "/" + formatter.format(prediction.posteriors[i][label]));
                             }
-                            output.println();
+                            output.println();*/
                         }
                     }
                     output.println();
@@ -553,19 +554,19 @@ class Mira implements Serializable {
 
     protected final double computeScore(Example example, int position, int label) {
         double score = 0;
-        if(numSharedLabels == 0) {
-            for(int i = 0; i < example.unigrams[position].length; i++) {
-                final int id = getId(example.unigrams[position][i], label);
-                score += weights[id];
-            }
-        } else {
-            for(int i = 0; i < example.unigrams[position].length; i++) {
-                //final int id = getId(example.unigrams[position][i], label);
-                //score += weights[id];
-                for(int j = 0; j < sharedLabelMapping[label].length; j++) {
-                    final int id2 = getId(example.unigrams[position][i], sharedLabelMapping[label][j]);
-                    score += weights[id2];
-                }
+        for(int i = 0; i < example.unigrams[position].length; i++) {
+            final int id = getId(example.unigrams[position][i], label);
+            score += weights[id];
+        }
+        return score;
+    }
+
+    protected final double computeScoreSharedLabels(Example example, int position, int label) {
+        double score = 0;
+        for(int i = 0; i < example.unigrams[position].length; i++) {
+            for(int j = 0; j < sharedLabelMapping[label].length; j++) {
+                final int id2 = getId(example.unigrams[position][i], sharedLabelMapping[label][j]);
+                score += weights[id2];
             }
         }
         return score;
@@ -573,20 +574,20 @@ class Mira implements Serializable {
 
     protected final double computeScore(Example example, int position1, int label1, int label2) {
         double score = 0;
-        if(numSharedLabels == 0) {
-            for(int i = 0; i < example.bigrams[position1].length; i++) {
-                final int id = getId(example.bigrams[position1][i], label2, label1);
-                score += weights[id];
-            }
-        } else {
-            for(int i = 0; i < example.bigrams[position1].length; i++) {
-                //final int id = getId(example.bigrams[position1][i], label2, label1);
-                //score += weights[id];
-                for(int j = 0; j < sharedLabelMapping[label1].length; j++) {
-                    for(int k = 0; k < sharedLabelMapping[label2].length; k++) {
-                        final int id2 = getId(example.bigrams[position1][i], sharedLabelMapping[label2][k], sharedLabelMapping[label1][j]);
-                        score += weights[id2];
-                    }
+        for(int i = 0; i < example.bigrams[position1].length; i++) {
+            final int id = getId(example.bigrams[position1][i], label2, label1);
+            score += weights[id];
+        }
+        return score;
+    }
+
+    protected final double computeScoreSharedLabels(Example example, int position1, int label1, int label2) {
+        double score = 0;
+        for(int i = 0; i < example.bigrams[position1].length; i++) {
+            for(int j = 0; j < sharedLabelMapping[label1].length; j++) {
+                for(int k = 0; k < sharedLabelMapping[label2].length; k++) {
+                    final int id2 = getId(example.bigrams[position1][i], sharedLabelMapping[label2][k], sharedLabelMapping[label1][j]);
+                    score += weights[id2];
                 }
             }
         }
@@ -845,11 +846,13 @@ class Mira implements Serializable {
         for(int position = 0; position < example.labels.length; position++) {
             double max = 0;
             int argmax = -1;
+            double softMaxSum = 0;
             for(int label = 0; label < numLabels; label++) {
                 double score = computeScore(example, position, label) + prediction.score;
-                if(nbest > 1) prediction.posteriors[position][label] = score;
-                //System.err.println("(" + position + "," + label + ")" + computeScore(example, position, label));
-                //if(score > max) {
+                if(nbest > 1) {
+                    prediction.posteriors[position][label] = Math.exp(score);
+                    softMaxSum += prediction.posteriors[position][label];
+                }
                 if(argmax == -1 || score > max) {
                     max = score;
                     argmax = label;
@@ -857,128 +860,161 @@ class Mira implements Serializable {
             }
             prediction.labels[position] = argmax;
             prediction.score = max;
+            if(nbest > 1) {
+                for(int label = 0; label < numLabels; label++) prediction.posteriors[position][label] /= softMaxSum;
             }
-            return prediction;
         }
+        return prediction;
+    }
 
-        public double computeLoss(Example example, Example prediction) {
-            if(prediction.labels == null || prediction.labels.length != example.labels.length) {
-                System.err.println("ERROR: unexpeced prediction");
-                return Double.MAX_VALUE;
-            }
-            double loss = 0;
-            for(int i = 0; i < example.labels.length; i++) {
-                if(example.labels[i] != prediction.labels[i]) loss++;
-            }
-            return loss;
+    public double computeLoss(Example example, Example prediction) {
+        if(prediction.labels == null || prediction.labels.length != example.labels.length) {
+            System.err.println("ERROR: unexpeced prediction");
+            return Double.MAX_VALUE;
         }
+        double loss = 0;
+        for(int i = 0; i < example.labels.length; i++) {
+            if(example.labels[i] != prediction.labels[i]) loss++;
+        }
+        return loss;
+    }
 
-        double squaredFeatureDifference(Example example, Example prediction) {
-            double output = 0;
-            for(int i = 0; i < example.labels.length; i++) {
-                if(example.labels[i] != prediction.labels[i]) {
-                    output += 2 * example.unigrams[i].length;
-                    /*for(int j = 0; j < example.unigrams[i].length; j++)
-                      if(example.unigrams[i][j] != 0) output += 2;*/
+    double squaredFeatureDifference(Example example, Example prediction) {
+        double output = 0;
+        for(int i = 0; i < example.labels.length; i++) {
+            if(example.labels[i] != prediction.labels[i]) {
+                output += 2 * example.unigrams[i].length;
+                /*for(int j = 0; j < example.unigrams[i].length; j++)
+                  if(example.unigrams[i][j] != 0) output += 2;*/
+            }
+            if(i > 0 && (example.labels[i] != prediction.labels[i] || example.labels[i - 1] != prediction.labels[i - 1])) {
+                output += 2 * example.bigrams[i].length;
+                /*for(int j = 0; j < example.bigrams[i].length; j++)
+                  if(example.bigrams[i][j] != 0) output += 2;*/
+            }
+        }
+        return output;
+    }
+
+    double squaredFeatureDifference2(Example example, Example prediction) {
+        double output = 0;
+        TIntIntHashMap features = new TIntIntHashMap();
+        for(int i = 0; i < example.labels.length; i++) {
+            for(int j = 0; j < example.unigrams[i].length; j++) {
+                if(numSharedLabels== 0) {
+                    int example_id = getId(example.unigrams[i][j], example.labels[i]);
+                    int prediction_id = getId(example.unigrams[i][j], prediction.labels[i]);
+                    if(example_id >= 0) features.adjustOrPutValue(example_id, 1, 1);
+                    if(prediction_id >= 0) features.adjustOrPutValue(prediction_id, -1, -1);
+                } else {
+                    for(int label = 0; label < sharedLabelMapping[example.labels[i]].length; label++) {
+                        int shared_id = getId(example.unigrams[i][j], sharedLabelMapping[example.labels[i]][label]);
+                        features.adjustOrPutValue(shared_id, 1, 1);
+                    }
+                    for(int label = 0; label < sharedLabelMapping[prediction.labels[i]].length; label++) {
+                        int shared_id = getId(example.unigrams[i][j], sharedLabelMapping[prediction.labels[i]][label]);
+                        features.adjustOrPutValue(shared_id, -1, -1);
+                    }
                 }
-                if(i > 0 && (example.labels[i] != prediction.labels[i] || example.labels[i - 1] != prediction.labels[i - 1])) {
-                    output += 2 * example.bigrams[i].length;
-                    /*for(int j = 0; j < example.bigrams[i].length; j++)
-                      if(example.bigrams[i][j] != 0) output += 2;*/
-                }
             }
-            return output;
-        }
-
-        double squaredFeatureDifference2(Example example, Example prediction) {
-            double output = 0;
-            TIntIntHashMap features = new TIntIntHashMap();
-            for(int i = 0; i < example.labels.length; i++) {
-                for(int j = 0; j < example.unigrams[i].length; j++) {
-                    if(numSharedLabels== 0) {
-                        int example_id = getId(example.unigrams[i][j], example.labels[i]);
-                        int prediction_id = getId(example.unigrams[i][j], prediction.labels[i]);
+            if(i > 0) {
+                for(int j = 0; j < example.bigrams[i].length; j++) {
+                    if(numSharedLabels == 0) {
+                        int example_id = getId(example.bigrams[i][j], example.labels[i - 1], example.labels[i]);
+                        int prediction_id = getId(example.bigrams[i][j], prediction.labels[i - 1], prediction.labels[i]);
                         if(example_id >= 0) features.adjustOrPutValue(example_id, 1, 1);
                         if(prediction_id >= 0) features.adjustOrPutValue(prediction_id, -1, -1);
                     } else {
                         for(int label = 0; label < sharedLabelMapping[example.labels[i]].length; label++) {
-                            int shared_id = getId(example.unigrams[i][j], sharedLabelMapping[example.labels[i]][label]);
-                            features.adjustOrPutValue(shared_id, 1, 1);
+                            for(int previousLabel = 0; previousLabel < sharedLabelMapping[example.labels[i - 1]].length; previousLabel++) {
+                                int shared_id = getId(example.bigrams[i][j], sharedLabelMapping[example.labels[i - 1]][previousLabel], sharedLabelMapping[example.labels[i]][label]);
+                                features.adjustOrPutValue(shared_id, 1, 1);
+                            }
                         }
                         for(int label = 0; label < sharedLabelMapping[prediction.labels[i]].length; label++) {
-                            int shared_id = getId(example.unigrams[i][j], sharedLabelMapping[prediction.labels[i]][label]);
-                            features.adjustOrPutValue(shared_id, -1, -1);
-                        }
-                    }
-                }
-                if(i > 0) {
-                    for(int j = 0; j < example.bigrams[i].length; j++) {
-                        if(numSharedLabels == 0) {
-                            int example_id = getId(example.bigrams[i][j], example.labels[i - 1], example.labels[i]);
-                            int prediction_id = getId(example.bigrams[i][j], prediction.labels[i - 1], prediction.labels[i]);
-                            if(example_id >= 0) features.adjustOrPutValue(example_id, 1, 1);
-                            if(prediction_id >= 0) features.adjustOrPutValue(prediction_id, -1, -1);
-                        } else {
-                            for(int label = 0; label < sharedLabelMapping[example.labels[i]].length; label++) {
-                                for(int previousLabel = 0; previousLabel < sharedLabelMapping[example.labels[i - 1]].length; previousLabel++) {
-                                    int shared_id = getId(example.bigrams[i][j], sharedLabelMapping[example.labels[i - 1]][previousLabel], sharedLabelMapping[example.labels[i]][label]);
-                                    features.adjustOrPutValue(shared_id, 1, 1);
-                                }
-                            }
-                            for(int label = 0; label < sharedLabelMapping[prediction.labels[i]].length; label++) {
-                                for(int previousLabel = 0; previousLabel < sharedLabelMapping[prediction.labels[i - 1]].length; previousLabel++) {
-                                    int shared_id = getId(example.bigrams[i][j], sharedLabelMapping[prediction.labels[i - 1]][previousLabel], sharedLabelMapping[prediction.labels[i]][label]);
-                                    features.adjustOrPutValue(shared_id, -1, -1);
-                                }
+                            for(int previousLabel = 0; previousLabel < sharedLabelMapping[prediction.labels[i - 1]].length; previousLabel++) {
+                                int shared_id = getId(example.bigrams[i][j], sharedLabelMapping[prediction.labels[i - 1]][previousLabel], sharedLabelMapping[prediction.labels[i]][label]);
+                                features.adjustOrPutValue(shared_id, -1, -1);
                             }
                         }
                     }
                 }
             }
-            int feature_list[] = features.keys();
-            for(int i = 0; i < feature_list.length; i++) {
-                double value = features.get(feature_list[i]);
-                output += value * value;
-            }
-            return output;
         }
+        int feature_list[] = features.keys();
+        for(int i = 0; i < feature_list.length; i++) {
+            double value = features.get(feature_list[i]);
+            output += value * value;
+        }
+        return output;
+    }
 
-        public double update(Example example, Example prediction, double avgUpdate, double loss) {
-            if(example.score > prediction.score) {
-                return loss;
-            }
-            //if(loss == 0) return 0;
-            //if(prediction.score == 0) { loss = prediction.labels.length;
-            //}
-            double alpha = loss - (example.score - prediction.score);
-            double sfd = squaredFeatureDifference2(example, prediction);
-            //if(sfd == 0) sfd = loss * 2;
-            alpha /= sfd;
-            //System.err.println("n=" + example.labels.length + " loss="+loss+" example.score="+example.score+" prediction.score="+prediction.score+" sfd="+sfd+" alpha="+alpha);
-            if(loss == 0) return 0;
-            if(alpha < 0) alpha = 0.0;
-            if(alpha > clip) alpha = clip;
-            //alpha = 1;
-            for(int i = 0; i < example.labels.length; i++) {
-                if(example.labels[i] != prediction.labels[i]) {
-                    for(int j = 0; j < example.unigrams[i].length; j++) {
-                        if(numSharedLabels == 0) {
-                            int example_id = getId(example.unigrams[i][j], example.labels[i]);
-                            weights[example_id] += alpha;
-                            avgWeights[example_id] += avgUpdate * alpha;
-                            int prediction_id = getId(example.unigrams[i][j], prediction.labels[i]);
-                            if(prediction_id >= 0) {
-                                weights[prediction_id] -= alpha;
-                                avgWeights[prediction_id] -= avgUpdate * alpha;
+    public double update(Example example, Example prediction, double avgUpdate, double loss) {
+        if(example.score > prediction.score) {
+            return loss;
+        }
+        //if(loss == 0) return 0;
+        //if(prediction.score == 0) { loss = prediction.labels.length;
+        //}
+        double alpha = loss - (example.score - prediction.score);
+        double sfd = squaredFeatureDifference2(example, prediction);
+        //if(sfd == 0) sfd = loss * 2;
+        alpha /= sfd;
+        //System.err.println("n=" + example.labels.length + " loss="+loss+" example.score="+example.score+" prediction.score="+prediction.score+" sfd="+sfd+" alpha="+alpha);
+        if(loss == 0) return 0;
+        if(alpha < 0) alpha = 0.0;
+        if(alpha > clip) alpha = clip;
+        //alpha = 1;
+        for(int i = 0; i < example.labels.length; i++) {
+            if(example.labels[i] != prediction.labels[i]) {
+                for(int j = 0; j < example.unigrams[i].length; j++) {
+                    if(numSharedLabels == 0) {
+                        int example_id = getId(example.unigrams[i][j], example.labels[i]);
+                        weights[example_id] += alpha;
+                        avgWeights[example_id] += avgUpdate * alpha;
+                        int prediction_id = getId(example.unigrams[i][j], prediction.labels[i]);
+                        if(prediction_id >= 0) {
+                            weights[prediction_id] -= alpha;
+                            avgWeights[prediction_id] -= avgUpdate * alpha;
+                        }
+                    } else {
+                        for(int label = 0; label < sharedLabelMapping[example.labels[i]].length; label++) {
+                            int shared_example_id = getId(example.unigrams[i][j], sharedLabelMapping[example.labels[i]][label]);
+                            weights[shared_example_id] += alpha;
+                            avgWeights[shared_example_id] += avgUpdate * alpha;
+                        }
+                        for(int label = 0; label < sharedLabelMapping[prediction.labels[i]].length; label++) {
+                            int shared_prediction_id = getId(example.unigrams[i][j], sharedLabelMapping[prediction.labels[i]][label]);
+                            if(shared_prediction_id >= 0) {
+                                weights[shared_prediction_id] -= alpha;
+                                avgWeights[shared_prediction_id] -= avgUpdate * alpha;
                             }
-                        } else {
-                            for(int label = 0; label < sharedLabelMapping[example.labels[i]].length; label++) {
-                                int shared_example_id = getId(example.unigrams[i][j], sharedLabelMapping[example.labels[i]][label]);
+                        }
+                    }
+                }
+            }
+            if(i > 0 && (example.labels[i] != prediction.labels[i] || example.labels[i - 1] != prediction.labels[i - 1])) {
+                for(int j = 0; j < example.bigrams[i].length; j++) {
+                    if(numSharedLabels == 0) {
+                        int example_id = getId(example.bigrams[i][j], example.labels[i - 1], example.labels[i]);
+                        weights[example_id] += alpha;
+                        avgWeights[example_id] += avgUpdate * alpha;
+                        int prediction_id = getId(example.bigrams[i][j], prediction.labels[i - 1], prediction.labels[i]);
+                        if(prediction_id >= 0) {
+                            weights[prediction_id] -= alpha;
+                            avgWeights[prediction_id] -= avgUpdate * alpha;
+                        }
+                    } else {
+                        for(int label = 0; label < sharedLabelMapping[example.labels[i]].length; label++) {
+                            for(int previousLabel = 0; previousLabel < sharedLabelMapping[example.labels[i - 1]].length; previousLabel++) {
+                                int shared_example_id = getId(example.bigrams[i][j], sharedLabelMapping[example.labels[i - 1]][previousLabel], sharedLabelMapping[example.labels[i]][label]);
                                 weights[shared_example_id] += alpha;
                                 avgWeights[shared_example_id] += avgUpdate * alpha;
                             }
-                            for(int label = 0; label < sharedLabelMapping[prediction.labels[i]].length; label++) {
-                                int shared_prediction_id = getId(example.unigrams[i][j], sharedLabelMapping[prediction.labels[i]][label]);
+                        }
+                        for(int label = 0; label < sharedLabelMapping[prediction.labels[i]].length; label++) {
+                            for(int previousLabel = 0; previousLabel < sharedLabelMapping[prediction.labels[i - 1]].length; previousLabel++) {
+                                int shared_prediction_id = getId(example.bigrams[i][j], sharedLabelMapping[prediction.labels[i - 1]][previousLabel], sharedLabelMapping[prediction.labels[i]][label]);
                                 if(shared_prediction_id >= 0) {
                                     weights[shared_prediction_id] -= alpha;
                                     avgWeights[shared_prediction_id] -= avgUpdate * alpha;
@@ -987,381 +1023,353 @@ class Mira implements Serializable {
                         }
                     }
                 }
-                if(i > 0 && (example.labels[i] != prediction.labels[i] || example.labels[i - 1] != prediction.labels[i - 1])) {
-                    for(int j = 0; j < example.bigrams[i].length; j++) {
-                        if(numSharedLabels == 0) {
-                            int example_id = getId(example.bigrams[i][j], example.labels[i - 1], example.labels[i]);
-                            weights[example_id] += alpha;
-                            avgWeights[example_id] += avgUpdate * alpha;
-                            int prediction_id = getId(example.bigrams[i][j], prediction.labels[i - 1], prediction.labels[i]);
-                            if(prediction_id >= 0) {
-                                weights[prediction_id] -= alpha;
-                                avgWeights[prediction_id] -= avgUpdate * alpha;
-                            }
-                        } else {
-                            for(int label = 0; label < sharedLabelMapping[example.labels[i]].length; label++) {
-                                for(int previousLabel = 0; previousLabel < sharedLabelMapping[example.labels[i - 1]].length; previousLabel++) {
-                                    int shared_example_id = getId(example.bigrams[i][j], sharedLabelMapping[example.labels[i - 1]][previousLabel], sharedLabelMapping[example.labels[i]][label]);
-                                    weights[shared_example_id] += alpha;
-                                    avgWeights[shared_example_id] += avgUpdate * alpha;
-                                }
-                            }
-                            for(int label = 0; label < sharedLabelMapping[prediction.labels[i]].length; label++) {
-                                for(int previousLabel = 0; previousLabel < sharedLabelMapping[prediction.labels[i - 1]].length; previousLabel++) {
-                                    int shared_prediction_id = getId(example.bigrams[i][j], sharedLabelMapping[prediction.labels[i - 1]][previousLabel], sharedLabelMapping[prediction.labels[i]][label]);
-                                    if(shared_prediction_id >= 0) {
-                                        weights[shared_prediction_id] -= alpha;
-                                        avgWeights[shared_prediction_id] -= avgUpdate * alpha;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            return loss;
-        }
-
-        void averageWeights(double factor) {
-            for(int i = 0; i < weights.length; i++) {
-                weights[i] = avgWeights[i] / factor;
             }
         }
+        return loss;
+    }
 
-        public void saveModel(String filename) throws IOException {
-            System.err.println("writing model: " + filename);
-            ObjectOutputStream output = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(filename)));
-            //ObjectOutputStream output = new ObjectOutputStream(new FileOutputStream(filename));
-            knownLabels.writeExternal(output);
-            unigramIds.writeExternal(output);
-            bigramIds.writeExternal(output);
-            output.writeObject(templates);
-            output.writeObject(labels);
-            output.writeInt(numLabels);
-            output.writeInt(numUnigramFeatures);
-            output.writeInt(numBigramFeatures);
-            output.writeInt(xsize);
-            output.writeObject(weights);
-            output.writeInt(numSharedLabels);
-            output.writeObject(sharedLabelMapping);
-            //output.writeObject(avgWeights);
-            output.close();
+    void averageWeights(double factor) {
+        for(int i = 0; i < weights.length; i++) {
+            weights[i] = avgWeights[i] / factor;
         }
+    }
 
-        public void saveTextModel(String filename) throws IOException {
-            if(numSharedLabels != 0) {
-                System.err.println("ERROR: shared labels are not supported in text models");
-                return;
-            }
-            System.err.println("writing text model: " + filename);
-            PrintStream output = new PrintStream(new BufferedOutputStream(new FileOutputStream(filename)), false);
-            //PrintStream output = new PrintStream(new BufferedOutputStream(new FileOutputStream(filename), 1000000));
-            /* header */
-            output.println("version: 100");
-            output.println("cost-factor: 1");
-            output.println("maxid: " + weights.length);
-            output.println("xsize: " + xsize);
-            output.println();
-            /* labels */
-            for(int i = 0; i < labels.length; i++) output.println(labels[i]);
-            output.println();
-            /* templates */
-            for(int i = 0; i < templates.size(); i++) if(!templates.get(i).definition.equals("")) output.println(templates.get(i).definition);
-            output.println();
-            /* features */
-            String unigramNames[] = unigramIds.keys(new String[0]);
-            for(int i = 0; i < unigramNames.length; i++) output.println("" + unigramIds.get(unigramNames[i]) + " " + unigramNames[i]);
-            String bigramNames[] = bigramIds.keys(new String[0]);
-            for(int i = 0; i < bigramNames.length; i++) output.println("" + bigramIds.get(bigramNames[i]) + " " + bigramNames[i]);
-            output.println();
-            /* weights */
-            for(int i = 0; i < weights.length; i++) output.println(weights[i]);
-            output.close();
+    public void saveModel(String filename) throws IOException {
+        System.err.println("writing model: " + filename);
+        ObjectOutputStream output = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(filename)));
+        //ObjectOutputStream output = new ObjectOutputStream(new FileOutputStream(filename));
+        knownLabels.writeExternal(output);
+        unigramIds.writeExternal(output);
+        bigramIds.writeExternal(output);
+        output.writeObject(templates);
+        output.writeObject(labels);
+        output.writeInt(numLabels);
+        output.writeInt(numUnigramFeatures);
+        output.writeInt(numBigramFeatures);
+        output.writeInt(xsize);
+        output.writeObject(weights);
+        output.writeInt(numSharedLabels);
+        output.writeObject(sharedLabelMapping);
+        //output.writeObject(avgWeights);
+        output.close();
+    }
+
+    public void saveTextModel(String filename) throws IOException {
+        if(numSharedLabels != 0) {
+            System.err.println("ERROR: shared labels are not supported in text models");
+            return;
         }
+        System.err.println("writing text model: " + filename);
+        PrintStream output = new PrintStream(new BufferedOutputStream(new FileOutputStream(filename)), false);
+        //PrintStream output = new PrintStream(new BufferedOutputStream(new FileOutputStream(filename), 1000000));
+        /* header */
+        output.println("version: 100");
+        output.println("cost-factor: 1");
+        output.println("maxid: " + weights.length);
+        output.println("xsize: " + xsize);
+        output.println();
+        /* labels */
+        for(int i = 0; i < labels.length; i++) output.println(labels[i]);
+        output.println();
+        /* templates */
+        for(int i = 0; i < templates.size(); i++) if(!templates.get(i).definition.equals("")) output.println(templates.get(i).definition);
+        output.println();
+        /* features */
+        String unigramNames[] = unigramIds.keys(new String[0]);
+        for(int i = 0; i < unigramNames.length; i++) output.println("" + unigramIds.get(unigramNames[i]) + " " + unigramNames[i]);
+        String bigramNames[] = bigramIds.keys(new String[0]);
+        for(int i = 0; i < bigramNames.length; i++) output.println("" + bigramIds.get(bigramNames[i]) + " " + bigramNames[i]);
+        output.println();
+        /* weights */
+        for(int i = 0; i < weights.length; i++) output.println(weights[i]);
+        output.close();
+    }
 
-        public void loadTextModel(String filename) throws IOException, NumberFormatException {
-            System.err.println("reading text model: " + filename);
-            BufferedReader input = new BufferedReader(new FileReader(filename));
-            String line;
-            int stage = 0;
-            knownLabels = new TObjectIntHashMap<String>();
-            unigramIds = new TObjectIntHashMap<String>();
-            bigramIds = new TObjectIntHashMap<String>();
-            templates = new Vector<Template>();
-            int currentWeight = 0;
-            int lineNum = 0;
-            while(null != (line = input.readLine())) {
-                lineNum ++;
-                line = line.trim();
-                if(line.equals("")) stage ++;
-                else if(stage == 0) { // header
-                    String tokens[] = line.split(" ");
-                    if(tokens.length != 2) { System.err.println("ERROR: unrecognized header \"" + line + "\", line " + lineNum); return; }
-                    else if(tokens[0].equals("version:") && !tokens[1].equals("100")) { System.err.println("ERROR: unrecognized model version " + tokens[1] + ", line " + lineNum); return; }
-                    else if(tokens[0].equals("cost-factor:")) { clip = Integer.parseInt(tokens[1]); }
-                    else if(tokens[0].equals("maxid:")) { weights = new double[Integer.parseInt(tokens[1])]; }
-                    else if(tokens[0].equals("xsize:")) { xsize = Integer.parseInt(tokens[1]); }
-                } else if(stage == 1) { // labels
-                    knownLabels.put(line, knownLabels.size());
-                } else if(stage == 2) { // templates
-                    templates.add(new Template(line));
-                } else if(stage == 3) { // feature ids
-                    String tokens[] = line.split(" ");
-                    if(tokens.length != 2) { System.err.println("ERROR: unrecognized feature id \"" + line + "\", line " + lineNum); return; }
-                    int id = Integer.parseInt(tokens[0]);
-                    if(id < 0 || id >= weights.length) { System.err.println("ERROR: unexpected id \"" + line + "\", line " + lineNum); return; }
-                    if(tokens[1].startsWith("U")) {
-                        unigramIds.put(tokens[1], id);
-                    } else if(tokens[1].startsWith("B")) {
-                        bigramIds.put(tokens[1], id);
-                    } else { System.err.println("ERROR: unexpected feature type \"" + line + "\", line " + lineNum); return; }
-                } else if(stage == 4) { // weights
-                    weights[currentWeight] = Double.parseDouble(line);
-                    currentWeight++;
-                }
+    public void loadTextModel(String filename) throws IOException, NumberFormatException {
+        System.err.println("reading text model: " + filename);
+        BufferedReader input = new BufferedReader(new FileReader(filename));
+        String line;
+        int stage = 0;
+        knownLabels = new TObjectIntHashMap<String>();
+        unigramIds = new TObjectIntHashMap<String>();
+        bigramIds = new TObjectIntHashMap<String>();
+        templates = new Vector<Template>();
+        int currentWeight = 0;
+        int lineNum = 0;
+        while(null != (line = input.readLine())) {
+            lineNum ++;
+            line = line.trim();
+            if(line.equals("")) stage ++;
+            else if(stage == 0) { // header
+                String tokens[] = line.split(" ");
+                if(tokens.length != 2) { System.err.println("ERROR: unrecognized header \"" + line + "\", line " + lineNum); return; }
+                else if(tokens[0].equals("version:") && !tokens[1].equals("100")) { System.err.println("ERROR: unrecognized model version " + tokens[1] + ", line " + lineNum); return; }
+                else if(tokens[0].equals("cost-factor:")) { clip = Integer.parseInt(tokens[1]); }
+                else if(tokens[0].equals("maxid:")) { weights = new double[Integer.parseInt(tokens[1])]; }
+                else if(tokens[0].equals("xsize:")) { xsize = Integer.parseInt(tokens[1]); }
+            } else if(stage == 1) { // labels
+                knownLabels.put(line, knownLabels.size());
+            } else if(stage == 2) { // templates
+                templates.add(new Template(line));
+            } else if(stage == 3) { // feature ids
+                String tokens[] = line.split(" ");
+                if(tokens.length != 2) { System.err.println("ERROR: unrecognized feature id \"" + line + "\", line " + lineNum); return; }
+                int id = Integer.parseInt(tokens[0]);
+                if(id < 0 || id >= weights.length) { System.err.println("ERROR: unexpected id \"" + line + "\", line " + lineNum); return; }
+                if(tokens[1].startsWith("U")) {
+                    unigramIds.put(tokens[1], id);
+                } else if(tokens[1].startsWith("B")) {
+                    bigramIds.put(tokens[1], id);
+                } else { System.err.println("ERROR: unexpected feature type \"" + line + "\", line " + lineNum); return; }
+            } else if(stage == 4) { // weights
+                weights[currentWeight] = Double.parseDouble(line);
+                currentWeight++;
             }
-            numLabels = knownLabels.size();
-            labels = new String[numLabels];
-            for(int i = 0; i < numLabels; i++) {
-                labels[knownLabels.get((String)knownLabels.keys()[i])] = (String)knownLabels.keys()[i];
-            }
-            numUnigramFeatures = unigramIds.size();
-            numBigramFeatures = bigramIds.size();
         }
-
-        @SuppressWarnings("unchecked") public void loadModel(String filename) throws IOException, ClassNotFoundException {
-            System.err.println("reading model: " + filename);
-            ObjectInputStream input = new ObjectInputStream(new GZIPInputStream(new FileInputStream(filename)));
-            /*ObjectInputStream input;
-              if(filename.endsWith(".gz")) input = new ObjectInputStream(new GZIPInputStream(new FileInputStream(filename))); 
-              else input = new ObjectInputStream(new FileInputStream(filename));*/
-            knownLabels = new TObjectIntHashMap<String>();
-            knownLabels.readExternal(input);
-            unigramIds = new TObjectIntHashMap<String>();
-            unigramIds.readExternal(input);
-            bigramIds = new TObjectIntHashMap<String>();
-            bigramIds.readExternal(input);
-            templates = (Vector<Template>) input.readObject();
-            labels = (String[]) input.readObject();
-            numLabels = input.readInt();
-            numUnigramFeatures = input.readInt();
-            numBigramFeatures = input.readInt();
-            xsize = input.readInt();
-            weights = (double[]) input.readObject();
-            numSharedLabels = input.readInt();
-            sharedLabelMapping = (int[][]) input.readObject();
-            //avgWeights = (double[]) input.readObject();
-            input.close();
-            //System.err.println("model loaded.");
+        numLabels = knownLabels.size();
+        labels = new String[numLabels];
+        for(int i = 0; i < numLabels; i++) {
+            labels[knownLabels.get((String)knownLabels.keys()[i])] = (String)knownLabels.keys()[i];
         }
+        numUnigramFeatures = unigramIds.size();
+        numBigramFeatures = bigramIds.size();
+    }
 
-        @SuppressWarnings("unchecked") public void mergeModel(String filename) throws IOException, ClassNotFoundException {
-            System.err.println("merging model: " + filename);
-            ObjectInputStream input = new ObjectInputStream(new GZIPInputStream(new FileInputStream(filename)));
-            TObjectIntHashMap<String> knownLabels = new TObjectIntHashMap<String>();
-            knownLabels.readExternal(input);
-            TObjectIntHashMap<String> unigramIds = new TObjectIntHashMap<String>();
-            unigramIds.readExternal(input);
-            TObjectIntHashMap<String> bigramIds = new TObjectIntHashMap<String>();
-            bigramIds.readExternal(input);
-            Vector<Template> templates = (Vector<Template>) input.readObject();
-            String[] labels = (String[]) input.readObject();
-            int numLabels = input.readInt();
-            int numUnigramFeatures = input.readInt();
-            int numBigramFeatures = input.readInt();
-            double[] weights = (double[]) input.readObject();
-            int numSharedLabels = input.readInt();
-            if(numSharedLabels != 0) {
-                System.err.println("ERROR: merging models with shared labels is not supported yet");
-                return;
-            }
-            int[][] sharedLabelMapping = (int[][]) input.readObject(); // should be empty
-            input.close();
-            if(numLabels != this.numLabels) { System.err.println("ERROR: number of label mismatch in " + filename); return; }
-            if(numUnigramFeatures != this.numUnigramFeatures) { System.err.println("ERROR: number of unigram features mismatch in " + filename); return; }
-            if(numBigramFeatures != this.numBigramFeatures) { System.err.println("ERROR: number of bigram features mismatch in " + filename); return; }
-            if(weights.length != this.weights.length) { System.err.println("ERROR: number of weights mismatch in " + filename); return; }
-            if(templates.size() != this.templates.size()) { System.err.println("ERROR: templates mismatch in " + filename); }
-            // layout: [unigrams:label x feature] [bigrams:label x label x feature]
-            int labelMapping[] = new int[numLabels];
+    @SuppressWarnings("unchecked") public void loadModel(String filename) throws IOException, ClassNotFoundException {
+        System.err.println("reading model: " + filename);
+        ObjectInputStream input = new ObjectInputStream(new GZIPInputStream(new FileInputStream(filename)));
+        /*ObjectInputStream input;
+          if(filename.endsWith(".gz")) input = new ObjectInputStream(new GZIPInputStream(new FileInputStream(filename))); 
+          else input = new ObjectInputStream(new FileInputStream(filename));*/
+        knownLabels = new TObjectIntHashMap<String>();
+        knownLabels.readExternal(input);
+        unigramIds = new TObjectIntHashMap<String>();
+        unigramIds.readExternal(input);
+        bigramIds = new TObjectIntHashMap<String>();
+        bigramIds.readExternal(input);
+        templates = (Vector<Template>) input.readObject();
+        labels = (String[]) input.readObject();
+        numLabels = input.readInt();
+        numUnigramFeatures = input.readInt();
+        numBigramFeatures = input.readInt();
+        xsize = input.readInt();
+        weights = (double[]) input.readObject();
+        numSharedLabels = input.readInt();
+        sharedLabelMapping = (int[][]) input.readObject();
+        //avgWeights = (double[]) input.readObject();
+        input.close();
+        //System.err.println("model loaded.");
+    }
+
+    @SuppressWarnings("unchecked") public void mergeModel(String filename) throws IOException, ClassNotFoundException {
+        System.err.println("merging model: " + filename);
+        ObjectInputStream input = new ObjectInputStream(new GZIPInputStream(new FileInputStream(filename)));
+        TObjectIntHashMap<String> knownLabels = new TObjectIntHashMap<String>();
+        knownLabels.readExternal(input);
+        TObjectIntHashMap<String> unigramIds = new TObjectIntHashMap<String>();
+        unigramIds.readExternal(input);
+        TObjectIntHashMap<String> bigramIds = new TObjectIntHashMap<String>();
+        bigramIds.readExternal(input);
+        Vector<Template> templates = (Vector<Template>) input.readObject();
+        String[] labels = (String[]) input.readObject();
+        int numLabels = input.readInt();
+        int numUnigramFeatures = input.readInt();
+        int numBigramFeatures = input.readInt();
+        double[] weights = (double[]) input.readObject();
+        int numSharedLabels = input.readInt();
+        if(numSharedLabels != 0) {
+            System.err.println("ERROR: merging models with shared labels is not supported yet");
+            return;
+        }
+        int[][] sharedLabelMapping = (int[][]) input.readObject(); // should be empty
+        input.close();
+        if(numLabels != this.numLabels) { System.err.println("ERROR: number of label mismatch in " + filename); return; }
+        if(numUnigramFeatures != this.numUnigramFeatures) { System.err.println("ERROR: number of unigram features mismatch in " + filename); return; }
+        if(numBigramFeatures != this.numBigramFeatures) { System.err.println("ERROR: number of bigram features mismatch in " + filename); return; }
+        if(weights.length != this.weights.length) { System.err.println("ERROR: number of weights mismatch in " + filename); return; }
+        if(templates.size() != this.templates.size()) { System.err.println("ERROR: templates mismatch in " + filename); }
+        // layout: [unigrams:label x feature] [bigrams:label x label x feature]
+        int labelMapping[] = new int[numLabels];
+        for(int label = 0; label < numLabels; label++) {
+            labelMapping[label] = this.knownLabels.get(labels[label]);
+        }
+        int unigramMapping[] = new int[numUnigramFeatures];
+        String unigramFeatures[] = unigramIds.keys(new String[0]);
+        for(int unigram = 0; unigram < numUnigramFeatures; unigram++) {
+            int id = unigramIds.get(unigramFeatures[unigram]);
+            unigramMapping[id] = this.unigramIds.get(unigramFeatures[unigram]);
+        }
+        for(int unigram = 0; unigram < numUnigramFeatures; unigram ++) {
             for(int label = 0; label < numLabels; label++) {
-                labelMapping[label] = this.knownLabels.get(labels[label]);
+                int id = unigram + label * numUnigramFeatures;
+                int localId = unigramMapping[unigram] + labelMapping[label] * numUnigramFeatures;
+                this.weights[localId] += weights[id];
             }
-            int unigramMapping[] = new int[numUnigramFeatures];
-            String unigramFeatures[] = unigramIds.keys(new String[0]);
-            for(int unigram = 0; unigram < numUnigramFeatures; unigram++) {
-                int id = unigramIds.get(unigramFeatures[unigram]);
-                unigramMapping[id] = this.unigramIds.get(unigramFeatures[unigram]);
-            }
-            for(int unigram = 0; unigram < numUnigramFeatures; unigram ++) {
-                for(int label = 0; label < numLabels; label++) {
-                    int id = unigram + label * numUnigramFeatures;
-                    int localId = unigramMapping[unigram] + labelMapping[label] * numUnigramFeatures;
+        }
+        int bigramMapping[] = new int[numBigramFeatures];
+        String bigramFeatures[] = bigramIds.keys(new String[0]);
+        for(int bigram = 0; bigram < numBigramFeatures; bigram++) {
+            int id = bigramIds.get(bigramFeatures[bigram]);
+            bigramMapping[id] = this.bigramIds.get(bigramFeatures[bigram]);
+        }
+        for(int bigram = 0; bigram < numBigramFeatures; bigram ++) {
+            for(int label1 = 0; label1 < numLabels; label1++) {
+                for(int label2 = 0; label2 < numLabels; label2++) {
+                    int id = getId(bigram, label1, label2);
+                    int localId = getId(bigramMapping[bigram], labelMapping[label1], labelMapping[label2]);
                     this.weights[localId] += weights[id];
                 }
             }
-            int bigramMapping[] = new int[numBigramFeatures];
-            String bigramFeatures[] = bigramIds.keys(new String[0]);
-            for(int bigram = 0; bigram < numBigramFeatures; bigram++) {
-                int id = bigramIds.get(bigramFeatures[bigram]);
-                bigramMapping[id] = this.bigramIds.get(bigramFeatures[bigram]);
+        }
+    }
+
+    public void setShiftColumns(int shiftColumns) {
+        //System.out.println(shiftColumns);
+        this.shiftColumns = shiftColumns;
+    }
+
+    public void usage(String error) {
+        if(error != null) {
+            System.err.println("Unrecognized argument \"" + error + "\"");
+        }
+        System.err.println("TRAIN: java -Xmx2G Mira -t [-f <cutoff>|-s <sigma>|-n <iter>|-i <model>|-r|-iob|-fi] <template> <train> <model> [heldout]");
+        System.err.println("  -t                 learn model weights given training data");
+        System.err.println("  -f <cutoff>        remove features with counts less than or equal to cutoff");
+        System.err.println("  -s <sigma>         hyper parameter corresponding to the maximum weight update after seeing an example");
+        System.err.println("  -n <iter>          perform n iterations (due to averaging, different number of iterations => different iterations)");
+        System.err.println("  -i <model>         input an already trained model");
+        System.err.println("  -r                 randomize starting weights");
+        System.err.println("  -iob               compute f-score using I- (inside), O (outside), B- (begin) prefixes in labels");
+        System.err.println("  -fi                init weights with normalized frequency of features");
+        System.err.println("  -labels <file>     shared weight label mapping file");
+        System.err.println("  -map               use maximum a posteriori prediction");
+        System.err.println("  <template>         template definition file");
+        System.err.println("  <train>            training data");
+        System.err.println("  <model>            model file name");
+        System.err.println("  [heldout]          compute error rate on an dataset not used for training");
+        System.err.println("PREDICT: java -Xmx2G Mira -p [-shift n] <model> [test]");
+        System.err.println("  -p                 predict labels on test data given a model");
+        System.err.println("  -shift <n>         shift column ids in template by <n> (lets you pass new columns through at test time)");
+        System.err.println("  -nbest <n>         display n-best labels");
+        System.err.println("  -scores            also display scores in n-best");
+        System.err.println("  -map               use maximum a posteriori prediction");
+        System.err.println("  -printFeatures     display actual features to stdout");
+        System.err.println("  <model>            model file name");
+        System.err.println("  [test]             test file name, stdin if not specified");
+        System.err.println("CONVERT: java -Xmx2G Mira -c [<model> <model.txt>|<model.txt> <model>]");
+        System.err.println("  -c                 convert a binary model to text or vice versa");
+        System.err.println("  <model>            input/output binary model");
+        System.err.println("  <model.txt>        input/output text model (must end in .txt)");
+        System.err.println("MERGE: java -Xmx2G Mira -m <output_model> <model1> <model2> ...");
+        System.err.println("  -c                 merge multiple models by adding their weights (no normalization)");
+        System.exit(1);
+    }
+
+    public static void main(String args[]) {
+        try {
+            Mira mira = new Mira();
+            int current = 0;
+            int mode = -1;
+            int frequency = 0;
+            double sigma = 1;
+            int iterations = 10;
+            int shiftColumns = 0;
+            int nbest = 1;
+            int beamSize = 0;
+            boolean maxPosteriors = false;
+            String templateName = null;
+            String trainName = null;
+            String modelName = null;
+            String convertModelName = null;
+            String testName = null;
+            String initialModelName = null;
+            String sharedLabelFile = null;
+            Vector<String> mergeModelNames = new Vector<String>();
+            boolean randomInit = false;
+            boolean frequencyInit = false;
+            boolean iobScorer = false;
+            while(current < args.length) {
+                if(args[current].equals("-t")) mode = 0; // train
+                else if(args[current].equals("-p")) mode = 1; // predict
+                else if(args[current].equals("-c")) mode = 2; // convert
+                else if(args[current].equals("-m")) mode = 3; // merge
+                else if(mode == 0 && args[current].equals("-f")) frequency = Integer.parseInt(args[++current]);
+                else if(mode == 0 && args[current].equals("-s")) sigma = Double.parseDouble(args[++current]);
+                else if(mode == 0 && args[current].equals("-n")) iterations = Integer.parseInt(args[++current]);
+                else if(mode == 0 && args[current].equals("-i")) initialModelName = args[ ++current];
+                else if(mode == 0 && args[current].equals("-r")) randomInit = true;
+                else if(mode == 0 && args[current].equals("-iob")) iobScorer = true;
+                else if(mode == 0 && args[current].equals("-fi")) frequencyInit = true;
+                else if(mode == 0 && args[current].equals("-labels")) sharedLabelFile = args[ ++current];
+                else if((mode == 0 || mode == 1) && args[current].equals("-map")) maxPosteriors = true;
+                else if((mode == 0 || mode == 1) && args[current].equals("-beam")) beamSize = Integer.parseInt(args[++current]);
+                else if(mode == 0 && templateName == null) templateName =args[current];
+                else if(mode == 0 && trainName == null) trainName =args[current];
+                else if(mode == 0 && modelName == null) modelName = args[current];
+                else if(mode == 0 && testName == null) testName = args[current];
+                else if(mode == 1 && args[current].equals("-shift")) shiftColumns = Integer.parseInt(args[++current]);
+                else if(mode == 1 && args[current].equals("-nbest")) nbest = Integer.parseInt(args[++current]);
+                else if(mode == 1 && args[current].equals("-scores")) mira.printScores = true;
+                else if(mode == 1 && args[current].equals("-printFeatures")) mira.printFeatures = true;
+                else if(mode == 1 && modelName == null) modelName = args[current];
+                else if(mode == 1 && testName == null) testName = args[current];
+                else if(mode == 2 && modelName == null) modelName = args[current];
+                else if(mode == 2 && convertModelName == null) convertModelName = args[current];
+                else if(mode == 3 && modelName == null) modelName = args[current];
+                else if(mode == 3 && modelName != null) mergeModelNames.add(args[current]);
+                else mira.usage(args[current]);
+                current ++;
             }
-            for(int bigram = 0; bigram < numBigramFeatures; bigram ++) {
-                for(int label1 = 0; label1 < numLabels; label1++) {
-                    for(int label2 = 0; label2 < numLabels; label2++) {
-                        int id = getId(bigram, label1, label2);
-                        int localId = getId(bigramMapping[bigram], labelMapping[label1], labelMapping[label2]);
-                        this.weights[localId] += weights[id];
+            if(modelName == null || mode < 0) mira.usage(null);
+            if(mode == 0) { // train
+                if(iobScorer) mira.setIobScorer();
+                mira.loadTemplates(templateName);
+                mira.setClip(sigma);
+                mira.maxPosteriors = maxPosteriors;
+                mira.beamSize = beamSize;
+                int numExamples = mira.count(trainName, frequency);
+                if(sharedLabelFile != null) mira.loadSharedLabels(sharedLabelFile);
+                mira.initModel(randomInit);
+                if(frequencyInit) mira.initWeightsWithFrequency(trainName);
+                if(initialModelName != null) mira.mergeModel(initialModelName);
+                for(int i = 0; i < iterations; i++) {
+                    System.err.println("iteration " + i);
+                    mira.train(trainName, iterations, numExamples, i);
+                    mira.averageWeights(iterations * numExamples);
+                    if(testName != null) {
+                        BufferedReader input = new BufferedReader(new FileReader(testName));
+                        mira.test(input, null);
                     }
                 }
+                mira.saveModel(modelName);
+            } else if(mode == 1) { // predict
+                BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
+                if(testName != null) input = new BufferedReader(new FileReader(testName));
+                if(modelName.endsWith(".txt")) mira.loadTextModel(modelName);
+                else mira.loadModel(modelName);
+                mira.setShiftColumns(shiftColumns);
+                mira.nbest = nbest;
+                mira.beamSize = beamSize;
+                mira.maxPosteriors = maxPosteriors;
+                mira.test(input, System.out);
+            } else if(mode == 2) { // convert
+                if(modelName.endsWith(".txt")) mira.loadTextModel(modelName);
+                else mira.loadModel(modelName);
+                if(convertModelName.endsWith(".txt")) mira.saveTextModel(convertModelName);
+                else mira.saveModel(convertModelName);
+            } else if(mode == 3) { // merge
+                for(int i = 0; i < mergeModelNames.size(); i++) {
+                    if(i == 0) {
+                        if(modelName.endsWith(".txt")) mira.loadTextModel(modelName);
+                        else mira.loadModel(modelName);
+                    }
+                    else mira.mergeModel(mergeModelNames.get(i));
+                }
+                mira.saveModel(modelName);
             }
-        }
-
-        public void setShiftColumns(int shiftColumns) {
-            //System.out.println(shiftColumns);
-            this.shiftColumns = shiftColumns;
-        }
-
-        public void usage(String error) {
-            if(error != null) {
-                System.err.println("Unrecognized argument \"" + error + "\"");
-            }
-            System.err.println("TRAIN: java -Xmx2G Mira -t [-f <cutoff>|-s <sigma>|-n <iter>|-i <model>|-r|-iob|-fi] <template> <train> <model> [heldout]");
-            System.err.println("  -t                 learn model weights given training data");
-            System.err.println("  -f <cutoff>        remove features with counts less than or equal to cutoff");
-            System.err.println("  -s <sigma>         hyper parameter corresponding to the maximum weight update after seeing an example");
-            System.err.println("  -n <iter>          perform n iterations (due to averaging, different number of iterations => different iterations)");
-            System.err.println("  -i <model>         input an already trained model");
-            System.err.println("  -r                 randomize starting weights");
-            System.err.println("  -iob               compute f-score using I- (inside), O (outside), B- (begin) prefixes in labels");
-            System.err.println("  -fi                init weights with normalized frequency of features");
-            System.err.println("  -labels <file>     shared weight label mapping file");
-            System.err.println("  -map               use maximum a posteriori prediction");
-            System.err.println("  <template>         template definition file");
-            System.err.println("  <train>            training data");
-            System.err.println("  <model>            model file name");
-            System.err.println("  [heldout]          compute error rate on an dataset not used for training");
-            System.err.println("PREDICT: java -Xmx2G Mira -p [-shift n] <model> [test]");
-            System.err.println("  -p                 predict labels on test data given a model");
-            System.err.println("  -shift <n>         shift column ids in template by <n> (lets you pass new columns through at test time)");
-            System.err.println("  -nbest <n>         display n-best labels for unigram models only");
-            System.err.println("  -map               use maximum a posteriori prediction");
-            System.err.println("  -printFeatures     display actual features to stdout");
-            System.err.println("  <model>            model file name");
-            System.err.println("  [test]             test file name, stdin if not specified");
-            System.err.println("CONVERT: java -Xmx2G Mira -c [<model> <model.txt>|<model.txt> <model>]");
-            System.err.println("  -c                 convert a binary model to text or vice versa");
-            System.err.println("  <model>            input/output binary model");
-            System.err.println("  <model.txt>        input/output text model (must end in .txt)");
-            System.err.println("MERGE: java -Xmx2G Mira -m <output_model> <model1> <model2> ...");
-            System.err.println("  -c                 merge multiple models by adding their weights (no normalization)");
+        } catch (Exception e) {
+            e.printStackTrace();
             System.exit(1);
         }
-
-        public static void main(String args[]) {
-            try {
-                Mira mira = new Mira();
-                int current = 0;
-                int mode = -1;
-                int frequency = 0;
-                double sigma = 1;
-                int iterations = 10;
-                int shiftColumns = 0;
-                int nbest = 1;
-                int beamSize = 0;
-                boolean maxPosteriors = false;
-                String templateName = null;
-                String trainName = null;
-                String modelName = null;
-                String convertModelName = null;
-                String testName = null;
-                String initialModelName = null;
-                String sharedLabelFile = null;
-                Vector<String> mergeModelNames = new Vector<String>();
-                boolean randomInit = false;
-                boolean frequencyInit = false;
-                boolean iobScorer = false;
-                while(current < args.length) {
-                    if(args[current].equals("-t")) mode = 0; // train
-                    else if(args[current].equals("-p")) mode = 1; // predict
-                    else if(args[current].equals("-c")) mode = 2; // convert
-                    else if(args[current].equals("-m")) mode = 3; // merge
-                    else if(mode == 0 && args[current].equals("-f")) frequency = Integer.parseInt(args[++current]);
-                    else if(mode == 0 && args[current].equals("-s")) sigma = Double.parseDouble(args[++current]);
-                    else if(mode == 0 && args[current].equals("-n")) iterations = Integer.parseInt(args[++current]);
-                    else if(mode == 0 && args[current].equals("-i")) initialModelName = args[ ++current];
-                    else if(mode == 0 && args[current].equals("-r")) randomInit = true;
-                    else if(mode == 0 && args[current].equals("-iob")) iobScorer = true;
-                    else if(mode == 0 && args[current].equals("-fi")) frequencyInit = true;
-                    else if(mode == 0 && args[current].equals("-labels")) sharedLabelFile = args[ ++current];
-                    else if((mode == 0 || mode == 1) && args[current].equals("-map")) maxPosteriors = true;
-                    else if((mode == 0 || mode == 1) && args[current].equals("-beam")) beamSize = Integer.parseInt(args[++current]);
-                    else if(mode == 0 && templateName == null) templateName =args[current];
-                    else if(mode == 0 && trainName == null) trainName =args[current];
-                    else if(mode == 0 && modelName == null) modelName = args[current];
-                    else if(mode == 0 && testName == null) testName = args[current];
-                    else if(mode == 1 && args[current].equals("-shift")) shiftColumns = Integer.parseInt(args[++current]);
-                    else if(mode == 1 && args[current].equals("-nbest")) nbest = Integer.parseInt(args[++current]);
-                    else if(mode == 1 && args[current].equals("-printFeatures")) mira.printFeatures = true;
-                    else if(mode == 1 && modelName == null) modelName = args[current];
-                    else if(mode == 1 && testName == null) testName = args[current];
-                    else if(mode == 2 && modelName == null) modelName = args[current];
-                    else if(mode == 2 && convertModelName == null) convertModelName = args[current];
-                    else if(mode == 3 && modelName == null) modelName = args[current];
-                    else if(mode == 3 && modelName != null) mergeModelNames.add(args[current]);
-                    else mira.usage(args[current]);
-                    current ++;
-                }
-                if(modelName == null || mode < 0) mira.usage(null);
-                if(mode == 0) { // train
-                    if(iobScorer) mira.setIobScorer();
-                    mira.loadTemplates(templateName);
-                    mira.setClip(sigma);
-                    mira.maxPosteriors = maxPosteriors;
-                    mira.beamSize = beamSize;
-                    int numExamples = mira.count(trainName, frequency);
-                    if(sharedLabelFile != null) mira.loadSharedLabels(sharedLabelFile);
-                    mira.initModel(randomInit);
-                    if(frequencyInit) mira.initWeightsWithFrequency(trainName);
-                    if(initialModelName != null) mira.mergeModel(initialModelName);
-                    for(int i = 0; i < iterations; i++) {
-                        System.err.println("iteration " + i);
-                        mira.train(trainName, iterations, numExamples, i);
-                        mira.averageWeights(iterations * numExamples);
-                        if(testName != null) {
-                            BufferedReader input = new BufferedReader(new FileReader(testName));
-                            mira.test(input, null);
-                        }
-                    }
-                    mira.saveModel(modelName);
-                } else if(mode == 1) { // predict
-                    BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
-                    if(testName != null) input = new BufferedReader(new FileReader(testName));
-                    if(modelName.endsWith(".txt")) mira.loadTextModel(modelName);
-                    else mira.loadModel(modelName);
-                    mira.setShiftColumns(shiftColumns);
-                    mira.nbest = nbest;
-                    mira.beamSize = beamSize;
-                    mira.maxPosteriors = maxPosteriors;
-                    mira.test(input, System.out);
-                } else if(mode == 2) { // convert
-                    if(modelName.endsWith(".txt")) mira.loadTextModel(modelName);
-                    else mira.loadModel(modelName);
-                    if(convertModelName.endsWith(".txt")) mira.saveTextModel(convertModelName);
-                    else mira.saveModel(convertModelName);
-                } else if(mode == 3) { // merge
-                    for(int i = 0; i < mergeModelNames.size(); i++) {
-                        if(i == 0) {
-                            if(modelName.endsWith(".txt")) mira.loadTextModel(modelName);
-                            else mira.loadModel(modelName);
-                        }
-                        else mira.mergeModel(mergeModelNames.get(i));
-                    }
-                    mira.saveModel(modelName);
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-                System.exit(1);
-            }
-        }
+    }
     }
